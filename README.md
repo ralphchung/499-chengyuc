@@ -1,1 +1,4 @@
-# 499-chengyuc
+# 499-chengyu
+* Cheng-Yu Chung
+* chengyuc@usc.edu
+
