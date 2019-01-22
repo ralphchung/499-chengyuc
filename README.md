@@ -24,6 +24,16 @@ $ make
 $ [sudo] make install
 ```
 
+## gtest
+### Installation
+```
+$ [sudo] apt install libgtest-dev cmake
+$ cd /usr/src/gtest
+$ [sudo] cmake CMakeLists.txt
+$ [sudo] make
+$ [sudo] cp *.a /usr/lib
+```
+
 # Components
 ## *.proto files
 ```
@@ -50,4 +60,10 @@ $ ./shell_backend [script file]
 put key value
 get key...
 delete key
+```
+
+### Unit Test
+```
+$ make test_backend
+$ ./test_backend
 ```
