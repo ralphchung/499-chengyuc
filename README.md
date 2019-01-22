@@ -36,3 +36,18 @@ $ make protos
 $ make backend_server
 $ ./backend_server
 ```
+
+### Shell
+```
+$ make shell_backend
+```
+**Usage**:
+```
+$ ./shell_backend [script file]
+```
+**Commands**:
+```
+put key value
+get key...
+delete key
+```
