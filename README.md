@@ -8,7 +8,7 @@
 
 ### Dependency
 ```
-$ [sudo] apt-get install build-essential autoconf libtool pkg-config
+$ [sudo] apt install build-essential autoconf libtool pkg-config
 ```
 
 ### Clone the gRPC repository (including submodules)
@@ -24,9 +24,15 @@ $ make
 $ [sudo] make install
 ```
 
-# Build
-
-## Build *.proto files
+# Components
+## *.proto files
 ```
-$ make proto
+$ make protos
+```
+
+## Backend Key-Value Store
+### Server
+```
+$ make backend_server
+$ ./backend_server
 ```
