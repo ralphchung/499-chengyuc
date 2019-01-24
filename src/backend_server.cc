@@ -1,72 +1,105 @@
-#include "key_value.grpc.pb.h"
+#include "backend_server.h"
+
 #include <map>
 #include <string>
+#include <utility>
 
 #include <grpc/grpc.h>
+#include <grpcpp/impl/codegen/status.h>
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
 #include <grpcpp/security/server_credentials.h>
 
-namespace {
-    std::map<std::string, std::string > internal_data;
+#include "backend_data_structure.h"
+#include "key_value.grpc.pb.h"
+
+#define DEFAULT_HOST_AND_PORT "0.0.0.0:50000"
+
+KeyValueStoreImpl::KeyValueStoreImpl() : backend_data_() {}
+
+grpc::Status KeyValueStoreImpl::put(
+    grpc::ServerContext *context,
+    const chirp::PutRequest *request,
+    chirp::PutReply *reply) {
+  
+  if (request == nullptr) {
+    return grpc::Status(grpc::INVALID_ARGUMENT,
+                        "`PutRequest` is nullptr.",
+                        "");
+  }
+
+  bool ret = backend_data_.Put(request->key(), request->value());
+
+  if (ret == true) {
+    return grpc::Status::OK;
+  }
+  else {
+    return grpc::Status(grpc::UNKNOWN, "Unknown error happened.", "");
+  }
 }
 
-class KeyValueStoreImpl final : public chirp::KeyValueStore::Service {
-    public:
-        explicit KeyValueStoreImpl(void) {}
+grpc::Status KeyValueStoreImpl::get(
+    grpc::ServerContext *context,
+    grpc::ServerReaderWriter<chirp::GetReply, chirp::GetRequest> *stream) {
 
-        grpc::Status put(grpc::ServerContext* context,
-                const chirp::PutRequest* request,
-                chirp::PutReply* reply) override {
+  chirp::GetRequest request;
 
-            // may need locks to ensure thread safety in the future
-            internal_data[request->key()] = request->value();
+  while(stream->Read(&request)) {
+    chirp::GetReply reply;
+    std::string value;
 
-            return grpc::Status::OK;
-        }
+    bool ret = backend_data_.Get(request.key(), &value);
+    if (ret == true) {
+      reply.set_value(value);
+    }
+    else {
+      reply.set_value(std::string());
+    }
 
-        grpc::Status get(grpc::ServerContext* context,
-                grpc::ServerReaderWriter<chirp::GetReply, chirp::GetRequest>* stream) override {
+    stream->Write(reply);
+  }
 
-            chirp::GetRequest request;
-
-            while(stream->Read(&request)) {
-                chirp::GetReply reply;
-                if (internal_data.count(request.key()) > 0) {
-                    reply.set_value(internal_data[request.key()]);
-                }
-                stream->Write(reply);
-            }
-
-            return grpc::Status::OK;
-        }
-
-        grpc::Status deletekey(grpc::ServerContext* context,
-                const chirp::DeleteRequest* request,
-                chirp::DeleteReply* reply) override {
-            internal_data.erase(request->key());
-
-            return grpc::Status::OK;
-        }
-};
-
-void run_server(void)
-{
-    std::string server_address("0.0.0.0:50000");
-    KeyValueStoreImpl service;
-
-    grpc::ServerBuilder builder;
-    builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-    builder.RegisterService(&service);
-    std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
-    std::cout << "Server is listening on " << server_address << std::endl;
-    server->Wait();
+  return grpc::Status::OK;
 }
 
-int main(int argc, char** argv)
-{
-    run_server();
+grpc::Status KeyValueStoreImpl::deletekey(
+    grpc::ServerContext *context,
+    const chirp::DeleteRequest *request,
+    chirp::DeleteReply *reply) {
 
-    return 0;
+  if (request == nullptr) {
+    return grpc::Status(grpc::INVALID_ARGUMENT,
+                        "`PutRequest` is nullptr.",
+                        "");
+  }
+
+  bool ret = backend_data_.DeleteKey(request->key());
+
+  if (ret == true) {
+    return grpc::Status::OK;
+  }
+  else {
+    return grpc::Status(grpc::NOT_FOUND, "Unknown error happened.", "");
+  }
+}
+
+void run_server()
+{
+  std::string server_address(DEFAULT_HOST_AND_PORT);
+  KeyValueStoreImpl service;
+
+  grpc::ServerBuilder builder;
+  builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+  builder.RegisterService(&service);
+  std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
+  std::cout << "Server is listening on " << server_address << std::endl;
+  server->Wait();
+}
+
+int main(int argc, char **argv)
+{
+  run_server();
+
+  return 0;
 }
