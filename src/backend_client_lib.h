@@ -12,11 +12,16 @@
 // A client that is used to communicate with the backend server
 class BackendClient {
  public:
-  // ctors to set the server host and port
+  // Constructor that doesn't take any argument
+  // hostname will be "localhost" and port number will be "50000"
   BackendClient();
-  BackendClient(const std::string &port);
+  // Constructor that takes one argument to be the hostname
+  // hostname is specified in the argument and port number will be "50000"
+  BackendClient(const std::string &host);
+  // Constructor that takes two arguments which are hostname and port number
+  // hostname and port number will be specified in the arguments
   BackendClient(const std::string &host, const std::string &port);
-  ~BackendClient();
+  virtual ~BackendClient();
 
   // Send a put request to the server
   // returns true if this operation succeeds

@@ -10,7 +10,7 @@
 class BackendDataStructure {
  public:
   BackendDataStructure();
-  ~BackendDataStructure();
+  virtual ~BackendDataStructure();
 
   // Put operation
   // returns true if this operation succeeds

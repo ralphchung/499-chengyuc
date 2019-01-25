@@ -27,7 +27,7 @@ bool BackendDataStructure::Get(const std::string &key,
 }
 
 bool BackendDataStructure::DeleteKey(const std::string &key) {
-  auto ret = key_value_map_.erase(key);
+  auto ok = key_value_map_.erase(key);
 
-  return (ret > 0);
+  return (ok > 0);
 }

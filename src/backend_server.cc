@@ -29,9 +29,9 @@ grpc::Status KeyValueStoreImpl::put(
                         "");
   }
 
-  bool ret = backend_data_.Put(request->key(), request->value());
+  bool ok = backend_data_.Put(request->key(), request->value());
 
-  if (ret == true) {
+  if (ok == true) {
     return grpc::Status::OK;
   }
   else {
@@ -49,8 +49,8 @@ grpc::Status KeyValueStoreImpl::get(
     chirp::GetReply reply;
     std::string value;
 
-    bool ret = backend_data_.Get(request.key(), &value);
-    if (ret == true) {
+    bool ok = backend_data_.Get(request.key(), &value);
+    if (ok == true) {
       reply.set_value(value);
     }
     else {
@@ -74,9 +74,9 @@ grpc::Status KeyValueStoreImpl::deletekey(
                         "");
   }
 
-  bool ret = backend_data_.DeleteKey(request->key());
+  bool ok = backend_data_.DeleteKey(request->key());
 
-  if (ret == true) {
+  if (ok == true) {
     return grpc::Status::OK;
   }
   else {
@@ -84,8 +84,7 @@ grpc::Status KeyValueStoreImpl::deletekey(
   }
 }
 
-void run_server()
-{
+void run_server() {
   std::string server_address(DEFAULT_HOST_AND_PORT);
   KeyValueStoreImpl service;
 
@@ -97,8 +96,7 @@ void run_server()
   server->Wait();
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   run_server();
 
   return 0;

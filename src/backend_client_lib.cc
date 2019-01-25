@@ -10,15 +10,18 @@
 
 #include "key_value.grpc.pb.h"
 
+#define DEFAULT_HOSTNAME "localhost"
+#define DEFAULT_PORT "50000"
+
 BackendClient::BackendClient()
-    : host_("localhost"), port_("50000") {
+    : host_(DEFAULT_HOSTNAME), port_(DEFAULT_PORT) {
   channel_ = grpc::CreateChannel(host_ + ":" + port_,
                                  grpc::InsecureChannelCredentials());
   stub_ = chirp::KeyValueStore::NewStub(channel_);
 }
 
-BackendClient::BackendClient(const std::string &port)
-    : host_("localhost"), port_(port) {
+BackendClient::BackendClient(const std::string &host)
+    : host_(host), port_(DEFAULT_PORT) {
   channel_ = grpc::CreateChannel(host_ + ":" + port_,
                                  grpc::InsecureChannelCredentials());
   stub_ = chirp::KeyValueStore::NewStub(channel_);
@@ -52,6 +55,9 @@ bool BackendClient::SendGetRequest(const std::vector<std::string> &keys,
   grpc::ClientContext context;
   std::shared_ptr<grpc::ClientReaderWriter<chirp::GetRequest, chirp::GetReply>> stream(stub_->get(&context));
 
+  // this lambda function takes `stream` and `keys` from this `BackendClient::SendGetRequest` scope
+  // and takes them by reference
+  // this thread runner fills in the get requests and writes them to the `stream`
   std::thread writer([&stream, &keys]() {
     for (const std::string &key : keys) {
       chirp::GetRequest request;
