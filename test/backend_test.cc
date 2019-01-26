@@ -9,14 +9,14 @@
 
 namespace {
 
-#define NUM_OF_PAIRS 20
+const int kNumOfPairs = 20;
 
 // Setup the same data for multiple tests
 // This setup generates 20 keys and its corresponding correct values
 class BackendTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    for(int i = 0; i < NUM_OF_PAIRS; ++i) {
+    for(int i = 0; i < kNumOfPairs; ++i) {
       keys.push_back(std::string({char(2 * i), char(3 * i), char(4 * i), char(5 * i)}));
       correct_values_full.push_back(std::string({char(255 ^ i), char(255 ^ i), char(255 ^ i)}));
       if (i % 2 == 1) {
@@ -42,14 +42,14 @@ TEST_F(BackendTest, DataStructurePutAndGet) {
   BackendDataStructure backend_data_structure;
 
   // Put
-  for(int i = 0; i < NUM_OF_PAIRS; ++i) {
+  for(int i = 0; i < kNumOfPairs; ++i) {
     bool ok = backend_data_structure.Put(keys[i], correct_values_full[i]);
     // Put operations should be successful here
     EXPECT_EQ(ok, true);
   }
 
   // Get
-  for(int i = 0; i < NUM_OF_PAIRS; ++i) {
+  for(int i = 0; i < kNumOfPairs; ++i) {
     std::string from_data_structure;
 
     bool ok = backend_data_structure.Get(keys[i], &from_data_structure);
@@ -68,14 +68,14 @@ TEST_F(BackendTest, DataStructurPutGetAndDelete) {
   BackendDataStructure backend_data_structure;
 
   // Put
-  for(int i = 0; i < NUM_OF_PAIRS; ++i) {
+  for(int i = 0; i < kNumOfPairs; ++i) {
     bool ok = backend_data_structure.Put(keys[i], correct_values_full[i]);
     // Put operations should be successful here
     EXPECT_EQ(ok, true);
   }
 
   // Get
-  for(int i = 0; i < NUM_OF_PAIRS; ++i) {
+  for(int i = 0; i < kNumOfPairs; ++i) {
     std::string from_data_structure;
 
     bool ok = backend_data_structure.Get(keys[i], &from_data_structure);
@@ -98,7 +98,7 @@ TEST_F(BackendTest, DataStructurPutGetAndDelete) {
   }
 
   // Get again
-  for(int i = 0; i < NUM_OF_PAIRS; ++i) {
+  for(int i = 0; i < kNumOfPairs; ++i) {
     std::string from_data_structure;
 
     bool ok = backend_data_structure.Get(keys[i], &from_data_structure);
@@ -122,7 +122,7 @@ TEST_F(BackendTest, ServerPutAndGet) {
   BackendClient client;
 
   // Put
-  for(int i = 0; i < NUM_OF_PAIRS; ++i) {
+  for(int i = 0; i < kNumOfPairs; ++i) {
     bool ok = client.SendPutRequest(keys[i], correct_values_full[i]);
     // Put operations should be successful here
     EXPECT_EQ(ok, true);
@@ -144,7 +144,7 @@ TEST_F(BackendTest, ServerPutGetAndDelete) {
   BackendClient client;
 
   // Put
-  for(int i = 0; i < NUM_OF_PAIRS; ++i) {
+  for(int i = 0; i < kNumOfPairs; ++i) {
     bool ok = client.SendPutRequest(keys[i], correct_values_full[i]);
     // Put operations should be successful here
     EXPECT_EQ(ok, true);

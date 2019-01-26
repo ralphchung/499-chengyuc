@@ -31,7 +31,7 @@ grpc::Status KeyValueStoreImpl::put(
 
   bool ok = backend_data_.Put(request->key(), request->value());
 
-  if (ok == true) {
+  if (ok) {
     return grpc::Status::OK;
   }
   else {
@@ -50,7 +50,7 @@ grpc::Status KeyValueStoreImpl::get(
     std::string value;
 
     bool ok = backend_data_.Get(request.key(), &value);
-    if (ok == true) {
+    if (ok) {
       reply.set_value(value);
     }
     else {
@@ -76,7 +76,7 @@ grpc::Status KeyValueStoreImpl::deletekey(
 
   bool ok = backend_data_.DeleteKey(request->key());
 
-  if (ok == true) {
+  if (ok) {
     return grpc::Status::OK;
   }
   else {

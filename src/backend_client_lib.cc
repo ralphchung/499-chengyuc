@@ -10,18 +10,18 @@
 
 #include "key_value.grpc.pb.h"
 
-#define DEFAULT_HOSTNAME "localhost"
-#define DEFAULT_PORT "50000"
+const char* kDefaultHostname = "localhost";
+const char* kDefaultPort = "50000";
 
 BackendClient::BackendClient()
-    : host_(DEFAULT_HOSTNAME), port_(DEFAULT_PORT) {
+    : host_(kDefaultHostname), port_(kDefaultPort) {
   channel_ = grpc::CreateChannel(host_ + ":" + port_,
                                  grpc::InsecureChannelCredentials());
   stub_ = chirp::KeyValueStore::NewStub(channel_);
 }
 
 BackendClient::BackendClient(const std::string &host)
-    : host_(host), port_(DEFAULT_PORT) {
+    : host_(host), port_(kDefaultPort) {
   channel_ = grpc::CreateChannel(host_ + ":" + port_,
                                  grpc::InsecureChannelCredentials());
   stub_ = chirp::KeyValueStore::NewStub(channel_);
