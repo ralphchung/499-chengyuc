@@ -4,41 +4,24 @@
 #include <sys/time.h>
 #include <sstream>
 
-ServiceDataStructure::ServiceDataStructure() : running_user_sessions_() {}
-
-ServiceDataStructure::~ServiceDataStructure() {
-  for(auto *session : running_user_sessions_) {
-    delete session;
-  }
-}
-
 ServiceDataStructure::UserSession::UserSession(struct User * const user)
     : user_(user) {}
 
-ServiceDataStructure::UserSession::~UserSession() {}
-
 bool ServiceDataStructure::UserSession::Follow(const std::string &username) {
-  auto it = username_to_user_map_.find(username);
-
   // The specifed user is found
-  if (it != username_to_user_map_.end()) {
+  if (username_to_user_map_.find(username) != username_to_user_map_.end()) {
     user_->following_list.insert(username);
     return true;
-  }
-  else {
+  } else {
     return false;
   }
 }
 
 bool ServiceDataStructure::UserSession::Unfollow(const std::string &username) {
-  auto it = user_->following_list.find(username);
-
-  // The specifed user is found
-  if (it != user_->following_list.end()) {
-    user_->following_list.erase(it);
+  // The specifed user is erased
+  if (user_->following_list.erase(username) > 0) {
     return true;
-  }
-  else {
+  } else {
     return false;
   }
 }
@@ -55,7 +38,7 @@ struct ServiceDataStructure::Chirp* const ServiceDataStructure::UserSession::Pos
   }
 
   // If the `parent_id` is specified
-  if (parent_id.size() > 0) {
+  if (!parent_id.empty()) {
     chirpid_to_chirp_map_[parent_id].children_ids.push_back(chirp->id);
   }
 
@@ -78,8 +61,7 @@ struct ServiceDataStructure::Chirp* const ServiceDataStructure::UserSession::Edi
   if (it != chirpid_to_chirp_map_.end() && it->second.user == user_->username) {
     it->second.text = text;
     return &(it->second);
-  }
-  else {
+  } else {
     return nullptr;
   }
 }
@@ -92,46 +74,36 @@ bool ServiceDataStructure::UserSession::DeleteChirp(const std::string &id) {
     user_->chirp_list.erase(id);
     chirpid_to_chirp_map_.erase(it);
     return true;
-  }
-  else {
+  } else {
     return false;
   }
 }
 
 bool ServiceDataStructure::UserRegister(const std::string &username) {
   // Invalid username
-  if (username == "") {
+  if (username.empty()) {
     return false;
   }
 
-  auto it = username_to_user_map_.find(username);
-
   // If the specified username is not found
-  if (it == username_to_user_map_.end()) {
+  if (username_to_user_map_.count(username) == 0) {
     auto ret = username_to_user_map_.emplace(username, User(username));
-    return true;
-  }
-  else {
+    // returns true if emplace succeeds
+    return (ret.second);
+  } else {
     return false;
   }
 }
 
-ServiceDataStructure::UserSession* ServiceDataStructure::UserLogin(const std::string &username) {
+std::unique_ptr<ServiceDataStructure::UserSession> ServiceDataStructure::UserLogin(const std::string &username) {
   auto it = username_to_user_map_.find(username);
 
   // If the specified username is found
   if (it != username_to_user_map_.end()) {
-    auto* user_session = new ServiceDataStructure::UserSession(&(it->second));
-    return user_session;
-  }
-  else {
+    return std::unique_ptr<ServiceDataStructure::UserSession>(new ServiceDataStructure::UserSession(&(it->second)));
+  } else {
     return nullptr;
   }
-}
-
-void ServiceDataStructure::UserLogout(const UserSession * const user_session) {
-  delete user_session;
-  running_user_sessions_.remove(user_session);
 }
 
 struct ServiceDataStructure::Chirp const *ServiceDataStructure::ReadChirp(const std::string &id) {
@@ -140,8 +112,7 @@ struct ServiceDataStructure::Chirp const *ServiceDataStructure::ReadChirp(const 
   // If the specified chirp is found
   if (it != chirpid_to_chirp_map_.end()) {
     return &(it->second);
-  }
-  else {
+  } else {
     return nullptr;
   }
 }
@@ -151,13 +122,10 @@ ServiceDataStructure::User::User(const std::string &username)
     following_list(),
     chirp_list() {}
 
-ServiceDataStructure::User::~User() {}
-
 void ServiceDataStructure::IncreaseNextChirpId() {
   if (next_chirp_id_.back() < CHAR_MAX) {
     ++next_chirp_id_.back();
-  }
-  else {
+  } else {
     next_chirp_id_.push_back(CHAR_MIN);
   }
 }

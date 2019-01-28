@@ -53,15 +53,15 @@ TEST_F(ServiceTest, UserTestAndPostTest) {
 
   for(size_t i = 0; i < kNumOfUsersTotal; ++i) {
     // Login once
-    ServiceDataStructure::UserSession *session_1 = service_data_structure_.UserLogin(user_list_[i]);
+    std::unique_ptr<ServiceDataStructure::UserSession> session_1 = service_data_structure_.UserLogin(user_list_[i]);
     EXPECT_NE(session_1, nullptr);
     // Login twice since multiple logins is allowed
-    ServiceDataStructure::UserSession *session_2 = service_data_structure_.UserLogin(user_list_[i]);
+    std::unique_ptr<ServiceDataStructure::UserSession> session_2 = service_data_structure_.UserLogin(user_list_[i]);
     EXPECT_NE(session_2, nullptr);
     EXPECT_NE(session_1, session_2);
 
-    service_data_structure_.UserLogout(session_1);
-    session_1 = nullptr;
+    // Logout
+    session_1.reset(nullptr);
 
     bool ok = session_2->Follow("nonexisted");
     // The above operation should fail since it follows an nonexisted user.
@@ -80,7 +80,7 @@ TEST_F(ServiceTest, UserTestAndPostTest) {
     // The edit operation should succeed and
     // its operation should modify the data in place instead of creating a new chirp
     EXPECT_EQ(chirp_1, chirp_1_edit);
-    EXPECT_EQ(session_2->get_chirp_list().size(), 2);
+    EXPECT_EQ(session_2->GetUserChirpList().size(), 2);
   
     struct ServiceDataStructure::Chirp *chirp_3 = session_2->PostChirp(kLongText);
     // The post operation should succeed
@@ -94,12 +94,12 @@ TEST_F(ServiceTest, UserTestAndPostTest) {
     EXPECT_EQ(ok, false);
     
     // Now two chirps should remain
-    EXPECT_EQ(session_2->get_chirp_list().size(), 2);
+    EXPECT_EQ(session_2->GetUserChirpList().size(), 2);
 
     // Now we should be able to find `chirp_1` in the chirp list
-    EXPECT_NE(session_2->get_chirp_list().find(chirp_2->id), session_2->get_chirp_list().end());
+    EXPECT_NE(session_2->GetUserChirpList().find(chirp_2->id), session_2->GetUserChirpList().end());
     // Now we should be able to find `chirp_3` in the chirp list
-    EXPECT_NE(session_2->get_chirp_list().find(chirp_3->id), session_2->get_chirp_list().end());
+    EXPECT_NE(session_2->GetUserChirpList().find(chirp_3->id), session_2->GetUserChirpList().end());
     
     // The text in the chirp we find should corresponds to the text we have posted
     EXPECT_EQ(service_data_structure_.ReadChirp(chirp_2->id)->text, kShortText);
