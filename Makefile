@@ -51,7 +51,15 @@ backend_test: $(TEST_PATH)/backend_test.cc key_value.pb.o key_value.grpc.pb.o ba
 	g++ -std=c++11 `pkg-config --cflags protobuf grpc` -I $(SRC_PATH) -Igtest/include  -c -o $(TEST_PATH)/backend_test.o $(TEST_PATH)/backend_test.cc
 	g++ $(SRC_PATH)/key_value.pb.o $(SRC_PATH)/key_value.grpc.pb.o $(SRC_PATH)/backend_client_lib.o $(SRC_PATH)/backend_data_structure.o $(TEST_PATH)/backend_test.o -L/usr/local/lib -Lgtest/lib -lgtest -lpthread `pkg-config --libs protobuf grpc++` -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed -ldl -o backend_test
 
+service_data_structure: $(SRC_PATH)/service_data_structure.cc $(SRC_PATH)/service_data_structure.h
+	g++ -std=c++11 `pkg-config --cflags protobuf grpc` -c -o $(SRC_PATH)/service_data_structure.o $(SRC_PATH)/service_data_structure.cc
+
+service_test: service_data_structure $(TEST_PATH)/service_test.cc
+	g++ -std=c++11 `pkg-config --cflags protobuf grpc` -I $(SRC_PATH) -Igtest/include  -c -o $(TEST_PATH)/service_test.o $(TEST_PATH)/service_test.cc
+	g++ $(SRC_PATH)/service_data_structure.o $(TEST_PATH)/service_test.o -L/usr/local/lib -Lgtest/lib -lgtest -lpthread `pkg-config --libs protobuf grpc++` -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed -ldl -o service_test
+
 clean: remove_compiled_proto remove_object_files
 	rm -f backend_server
 	rm -f *_backend
 	rm -f backend_*
+	rm -f service_*

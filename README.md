@@ -48,7 +48,13 @@ $ ./backend_server
 ```
 
 ### Unit Test
+#### backend_test
 ```
-$ make test_backend
-$ ./test_backend
+$ make backend_test
+$ ./backend_test
+```
+#### service_test
+```
+$ make service_test
+$ ./service_test
 ```
