@@ -18,12 +18,10 @@ bool ServiceDataStructure::UserSession::Follow(const std::string &username) {
 }
 
 bool ServiceDataStructure::UserSession::Unfollow(const std::string &username) {
-  // The specifed user is erased
-  if (user_->following_list.erase(username) > 0) {
-    return true;
-  } else {
-    return false;
-  }
+  // If the specifed user is erased
+  // the return value will be greater than 0
+  // which is true
+  return (user_->following_list.erase(username));
 }
 
 struct ServiceDataStructure::Chirp* const ServiceDataStructure::UserSession::PostChirp(
