@@ -2,11 +2,11 @@
 #define CHIRP_SRC_SERVICE_DATA_STRUCTURE_H_
 
 #include <cstdint>
-#include <list>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
+#include <sys/time.h>
 #include <unordered_map>
 #include <vector>
 
@@ -24,6 +24,8 @@ class ServiceDataStructure {
     std::set<std::string> following_list;
     // The chirp list stores the chirp ids that this user has posted
     std::set<std::string> chirp_list;
+    // The last posting time of this user
+    struct timeval last_update_chirp_time;
 
     // Constructor that initializes the `username`.
     // Other elements are initialized by their default constructors
@@ -34,12 +36,6 @@ class ServiceDataStructure {
   // The `struct Chirp` is a public struct in the `ServiceDataStructure`.
   // Therefore, it should be handled carefully.
   struct Chirp {
-    // The nested definition for the Timestamp struct
-    struct Timestamp {
-      int64_t seconds;
-      int64_t useconds;
-    };
-
     // The id of this chirp
     std::string id;
     // The username of the posting user
@@ -50,7 +46,7 @@ class ServiceDataStructure {
     // The text of this chirp
     std::string text;
     // The timestamp of this chirp
-    struct Timestamp time;
+    struct timeval time;
 
     // The ids that reply to this chirp
     std::vector<std::string> children_ids;
@@ -75,17 +71,22 @@ class ServiceDataStructure {
     // If the `parent_id` is not specified, its default value will be an empty string.
     // returns the newly posted chirp pointer if this operation succeeds
     // returns nullptr otherwise
-    struct Chirp* const PostChirp(const std::string &text, const std::string &parent_id = "");
+    const struct Chirp* PostChirp(const std::string &text, const std::string &parent_id = "");
 
     // Edit a chirp
     // returns the edited chirp pointer if this operation succeeds
     // returns nullptr otherwise
-    struct Chirp* const EditChirp(const std::string &id, const std::string &text);
+    const struct Chirp* EditChirp(const std::string &id, const std::string &text);
 
     // Delete a chirp
     // returns true if this operation succeeds
     // returns false otherwise
     bool DeleteChirp(const std::string &id);
+
+    // Monitor from a specified time to now
+    // returns a vector containing chirp ids
+    // the `struct timeval` passing in will be changed to the current time
+    std::vector<std::string> MonitorFrom(struct timeval * const from);
 
     // This returns the user's following list
     inline const std::set<std::string> &GetUserFollowingList() {
@@ -99,7 +100,7 @@ class ServiceDataStructure {
 
   private:
     // Private constructor
-    // This initialize the member data `user_`
+    // This initializes the member data `user_`
     UserSession(struct User * const user);
 
     // Befriend with `ServiceDataStructure`
@@ -118,12 +119,10 @@ class ServiceDataStructure {
   // User login operation
   // returns a pointer to a newly created `UserSession`
   // returns nullptr if this operation fails
-  // The memory that the returned pointer points to will be handled by the destructor
-  // Callers should not try to delete it manually
   std::unique_ptr<UserSession> UserLogin(const std::string &username);
 
   // Chirp read operation
-  // returns a pointer to the specified chirp
+  // returns a pointer to the specified chirp stored in the private member map
   // returns nullptr if the specified id could not be found
   // The caller should not be able to modify the content in the specified chirp
   struct Chirp const *ReadChirp(const std::string &id);
@@ -133,7 +132,7 @@ class ServiceDataStructure {
   static void IncreaseNextChirpId();
 
   // This utility function generates a new chirp, insert it into the `chirpid_to_chirp_map_`,
-  // and returns it
+  // and returns the pointer pointing to it
   static struct Chirp *GenerateNewChirp();
 
   // This stores the next chirp id which is maintained by `IncreaseNextChirpId()`
