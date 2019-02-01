@@ -1,5 +1,6 @@
 #include "service_data_structure.h"
 
+#include <algorithm>
 #include <climits>
 #include <sys/time.h>
 #include <sstream>
@@ -24,7 +25,7 @@ bool ServiceDataStructure::UserSession::Unfollow(const std::string &username) {
   return (user_->following_list.erase(username));
 }
 
-struct ServiceDataStructure::Chirp* const ServiceDataStructure::UserSession::PostChirp(
+const struct ServiceDataStructure::Chirp* ServiceDataStructure::UserSession::PostChirp(
     const std::string &text,
     const std::string &parent_id) {
 
@@ -35,21 +36,24 @@ struct ServiceDataStructure::Chirp* const ServiceDataStructure::UserSession::Pos
     return nullptr;
   }
 
+  // Fill in the fields in the `struct Chirp`
+  chirp->user = user_->username;
+  chirp->parent_id = parent_id;
+  chirp->text = text;
+
   // If the `parent_id` is specified
   if (!parent_id.empty()) {
     chirpid_to_chirp_map_[parent_id].children_ids.push_back(chirp->id);
   }
 
-  chirp->user = user_->username;
-  chirp->parent_id = parent_id;
-  chirp->text = text;
-
+  // Update the information of this user
+  user_->last_update_chirp_time = chirp->time;
   user_->chirp_list.insert(chirp->id);
 
   return chirp;
 }
 
-struct ServiceDataStructure::Chirp* const ServiceDataStructure::UserSession::EditChirp(
+const struct ServiceDataStructure::Chirp* ServiceDataStructure::UserSession::EditChirp(
     const std::string &id,
     const std::string &text) {
 
@@ -77,6 +81,33 @@ bool ServiceDataStructure::UserSession::DeleteChirp(const std::string &id) {
   }
 }
 
+std::vector<std::string> ServiceDataStructure::UserSession::MonitorFrom(struct timeval * const from) {
+  struct timeval now;
+  gettimeofday(&now, nullptr);
+
+  std::vector<std::string> ret;
+
+  // TODO: may open threads to do the following things
+  for(const auto& username : user_->following_list) {
+    auto it_user = username_to_user_map_.find(username);
+    if (timercmp(&(it_user->second.last_update_chirp_time), from, >)) {
+      // Do push_backs
+      for(const auto &id : it_user->second.chirp_list) {
+        const struct ServiceDataStructure::Chirp &chirp = chirpid_to_chirp_map_[id];
+
+        if (timercmp(&(chirp.time), from, >)) {
+          ret.push_back(chirp.id);
+        }
+      }
+    }
+  }
+
+  std::sort(ret.begin(), ret.end());
+
+  *from = now;
+  return ret;
+}
+
 bool ServiceDataStructure::UserRegister(const std::string &username) {
   // Invalid username
   if (username.empty()) {
@@ -85,7 +116,7 @@ bool ServiceDataStructure::UserRegister(const std::string &username) {
 
   // If the specified username is not found
   if (username_to_user_map_.count(username) == 0) {
-    auto ret = username_to_user_map_.emplace(username, User(username));
+    auto ret = username_to_user_map_.emplace(username, username);
     // returns true if emplace succeeds
     return (ret.second);
   } else {
@@ -118,7 +149,10 @@ struct ServiceDataStructure::Chirp const *ServiceDataStructure::ReadChirp(const 
 ServiceDataStructure::User::User(const std::string &username)
     : username(username),
     following_list(),
-    chirp_list() {}
+    chirp_list() {
+
+  gettimeofday(&last_update_chirp_time, nullptr);
+}
 
 void ServiceDataStructure::IncreaseNextChirpId() {
   if (next_chirp_id_.back() < CHAR_MAX) {
@@ -129,18 +163,17 @@ void ServiceDataStructure::IncreaseNextChirpId() {
 }
 
 struct ServiceDataStructure::Chirp *ServiceDataStructure::GenerateNewChirp() {
-  struct timeval time;
-  gettimeofday(&time, nullptr);
-
   chirpid_to_chirp_map_[next_chirp_id_] = {
     next_chirp_id_,
     "", // blank user field
     "", // blank parent user field
     "", // blank text field
-    {time.tv_sec, time.tv_usec}
+    {0, 0}
   };
 
   struct ServiceDataStructure::Chirp *ret = &(chirpid_to_chirp_map_[next_chirp_id_]);
+  gettimeofday(&(ret->time), nullptr);
+
   IncreaseNextChirpId();
 
   return ret;

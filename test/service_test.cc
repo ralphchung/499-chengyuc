@@ -1,6 +1,9 @@
+#include <chrono>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <sys/time.h>
+#include <thread>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -25,7 +28,6 @@ const char *kLongText = "longlonglonglonglonglonglonglonglonglonglonglonglonglon
 class ServiceTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    
     // Set up users
     for(size_t i = 0; i < kNumOfUsersTotal; ++i) {
       user_list_.push_back(std::string("user") + std::to_string(i));
@@ -39,71 +41,192 @@ class ServiceTest : public ::testing::Test {
   ServiceDataStructure service_data_structure_;
 };
 
-TEST_F(ServiceTest, UserTestAndPostTest) {
-  for(size_t i = 0; i < kNumOfUsersTotal; ++i) {
+TEST_F(ServiceTest, UserRegisterAndLoginTest) {
+  // Try to register existed usernames
+  for(size_t i = 0; i < kNumOfUsersPreset; ++i) {
     bool ok = service_data_structure_.UserRegister(user_list_[i]);
-    // The first `kNumOfUsersPreset` users should have already registered
-    if (i < kNumOfUsersPreset) {
-      EXPECT_EQ(ok, false) << "i is " << i << std::endl;
-    }
-    else {
-      EXPECT_EQ(ok, true) << "i is " << i << std::endl;
-    }
+    // This should fail since the username specified has already been registered in the `SetUp` process above
+    EXPECT_FALSE(ok);
   }
 
+  // Try to register non-existed usernames
+  for(size_t i = kNumOfUsersPreset; i < kNumOfUsersTotal; ++i) {
+    bool ok = service_data_structure_.UserRegister(user_list_[i]);
+    // This should succeed since the username specified is not registered
+    EXPECT_TRUE(ok);
+  }
+
+  // Try to login to those usernames that have been registered
   for(size_t i = 0; i < kNumOfUsersTotal; ++i) {
-    // Login once
-    std::unique_ptr<ServiceDataStructure::UserSession> session_1 = service_data_structure_.UserLogin(user_list_[i]);
-    EXPECT_NE(session_1, nullptr);
-    // Login twice since multiple logins is allowed
-    std::unique_ptr<ServiceDataStructure::UserSession> session_2 = service_data_structure_.UserLogin(user_list_[i]);
-    EXPECT_NE(session_2, nullptr);
+    // std::unique_ptr<ServiceDataStructure::UserSession>
+    auto session_1 = service_data_structure_.UserLogin(user_list_[i]);
+    // std::unique_ptr<ServiceDataStructure::UserSession>
+    auto session_2 = service_data_structure_.UserLogin(user_list_[i]);
+    EXPECT_NE(nullptr, session_1);
+    EXPECT_NE(nullptr, session_2);
+    // Multiple logins are allowed
     EXPECT_NE(session_1, session_2);
+  }
 
-    // Logout
-    session_1.reset(nullptr);
+  // Try to login to a non-existing username
+  // std::unique_ptr<ServiceDataStructure::UserSession>
+  auto session = service_data_structure_.UserLogin("nonexist");
+  EXPECT_EQ(nullptr, session);
+}
 
-    bool ok = session_2->Follow("nonexisted");
-    // The above operation should fail since it follows an nonexisted user.
-    EXPECT_EQ(ok, false);
-    ok = session_2->Follow(user_list_[(i + 5) % kNumOfUsersTotal]);
-    // This time the operation should succeed
-    EXPECT_EQ(ok, true);
+TEST_F(ServiceTest, PostEditAndDeleteTest) {
+  const size_t kTestCase = 10;
+  const size_t kHalfTestCase = kTestCase / 2;
 
-    struct ServiceDataStructure::Chirp *chirp_1 = session_2->PostChirp(kShortText);
-    // The post operation should succeed
-    EXPECT_NE(chirp_1, nullptr);
-    struct ServiceDataStructure::Chirp *chirp_2 = session_2->PostChirp(kShortText);
-    // The post operation should succeed
-    EXPECT_NE(chirp_2, nullptr);
-    struct ServiceDataStructure::Chirp *chirp_1_edit = session_2->EditChirp(chirp_1->id, kLongText);
-    // The edit operation should succeed and
-    // its operation should modify the data in place instead of creating a new chirp
-    EXPECT_EQ(chirp_1, chirp_1_edit);
-    EXPECT_EQ(session_2->GetUserChirpList().size(), 2);
-  
-    struct ServiceDataStructure::Chirp *chirp_3 = session_2->PostChirp(kLongText);
-    // The post operation should succeed
-    EXPECT_NE(chirp_3, nullptr);
+  // Set up expected contents for initial posts
+  std::vector<std::string> chirps_content;
+  for(size_t i = 0; i < kTestCase; ++i) {
+    chirps_content.push_back(std::string("Chirp #") + std::to_string(i) + kShortText);
+  }
 
-    ok = session_2->DeleteChirp(chirp_1->id);
-    // The delete operation should succeed
-    EXPECT_EQ(ok, true);
-    ok = session_2->DeleteChirp(chirp_1->id);
-    // The delete operation should fail since the same chirp cannot be deleted twice
-    EXPECT_EQ(ok, false);
-    
-    // Now two chirps should remain
-    EXPECT_EQ(session_2->GetUserChirpList().size(), 2);
+  // Set up expected contents for posts after editing
+  std::vector<std::string> chirps_content_after_edit(chirps_content);
+  for(size_t i = 0; i < kTestCase; ++i) {
+    chirps_content_after_edit[i] = std::string("Chirp #") + std::to_string(i) + kLongText;
+  }
 
-    // Now we should be able to find `chirp_1` in the chirp list
-    EXPECT_NE(session_2->GetUserChirpList().find(chirp_2->id), session_2->GetUserChirpList().end());
-    // Now we should be able to find `chirp_3` in the chirp list
-    EXPECT_NE(session_2->GetUserChirpList().find(chirp_3->id), session_2->GetUserChirpList().end());
-    
-    // The text in the chirp we find should corresponds to the text we have posted
-    EXPECT_EQ(service_data_structure_.ReadChirp(chirp_2->id)->text, kShortText);
-    EXPECT_EQ(service_data_structure_.ReadChirp(chirp_3->id)->text, kLongText);
+  // Set up expected contents for posts after deleting
+  std::vector<std::string> chirps_content_after_delete(chirps_content_after_edit);
+  for(size_t i = 0; i < kHalfTestCase; ++i) {
+    chirps_content_after_delete.erase(chirps_content_after_delete.begin());
+  }
+
+  // Tests for every user
+  for(size_t i = 0; i < kNumOfUsersPreset; ++i) {
+    // std::unique_ptr<ServiceDataStructure::UserSession>
+    auto session = service_data_structure_.UserLogin(user_list_[i]);
+    std::vector<std::string> chirp_ids;
+
+    ASSERT_NE(nullptr, session);
+
+    // Test Posting
+    std::string parent_id("");
+    for(size_t j = 0; j < kTestCase; ++j) {
+      auto *chirp = session->PostChirp(chirps_content[j], parent_id);
+      // Posting is successful
+      ASSERT_NE(chirp, nullptr);
+      parent_id = chirp->id;
+      chirp_ids.push_back(chirp->id);
+    }
+
+    // Read from backend
+    // to see if the results are identical
+    std::vector<std::string> chirps_content_from_backend;
+    std::string last_id("");
+    for(auto& id : session->GetUserChirpList()) {
+      const ServiceDataStructure::Chirp *chirp = service_data_structure_.ReadChirp(id);
+      // Reading is successful
+      ASSERT_NE(nullptr, chirp);
+      EXPECT_EQ(last_id, chirp->parent_id);
+      last_id = chirp->id;
+      chirps_content_from_backend.push_back(chirp->text);
+    }
+    // Check if the contents are identical
+    EXPECT_EQ(chirps_content, chirps_content_from_backend); 
+
+    // Test Editing
+    chirps_content_from_backend.clear();
+    for(size_t j = 0; j < chirp_ids.size(); ++j) {
+      const ServiceDataStructure::Chirp *chirp = session->EditChirp(chirp_ids[j], chirps_content_after_edit[j]);
+      // Editing is successful
+      ASSERT_NE(nullptr, chirp);
+    }
+
+    // Read from backend
+    // to see if the results are identical
+    for(auto& id : session->GetUserChirpList()) {
+      const ServiceDataStructure::Chirp *chirp = service_data_structure_.ReadChirp(id);
+      ASSERT_NE(nullptr, chirp);
+      chirps_content_from_backend.push_back(chirp->text);
+    }
+    // Check if the contents are identical
+    EXPECT_EQ(chirps_content_after_edit, chirps_content_from_backend);
+
+    // Test Deleting
+    chirps_content_from_backend.clear();
+    for(size_t j = 0; j < kHalfTestCase; ++j) {
+      bool ok = session->DeleteChirp(chirp_ids[j]);
+      // Deleting is successful
+      EXPECT_TRUE(ok);
+      ok = session->DeleteChirp(chirp_ids[j]);
+      // Deleting is unsuccessful since it is already deleted
+      EXPECT_FALSE(ok);
+    }
+
+    // Read from backend
+    // to see if the results are identical
+    for(auto& id : session->GetUserChirpList()) {
+      const ServiceDataStructure::Chirp *chirp = service_data_structure_.ReadChirp(id);
+      // Reading is successful
+      ASSERT_NE(nullptr, chirp);
+      chirps_content_from_backend.push_back(chirp->text);
+    }
+    // Check if the contents are identical
+    EXPECT_EQ(chirps_content_after_delete, chirps_content_from_backend);
+  }
+}
+
+TEST_F(ServiceTest, FollowAndMonitorTest) {
+  // Each user follows the next user
+  for(size_t i = 0; i < kNumOfUsersPreset; ++i) {
+    // std::unique_ptr<ServiceDataStructure::UserSession>
+    auto session = service_data_structure_.UserLogin(user_list_[i]);
+    // Login is successful
+    EXPECT_NE(nullptr, session);
+    bool ok = session->Follow(user_list_[(i + 1) % kNumOfUsersPreset]);
+    // Following is successful
+    EXPECT_TRUE(ok);
+  }
+
+  // Each user monitors their following users
+  for(size_t i = 0; i < kNumOfUsersPreset; ++i) {
+    // std::unique_ptr<ServiceDataStructure::UserSession>
+    auto session_user_followed = service_data_structure_.UserLogin(user_list_[(i + 1) % kNumOfUsersPreset]);
+    // Login as the followed user successful
+    EXPECT_NE(nullptr, session_user_followed);
+
+    // Post some dont-care chirps from the followed user
+    for(size_t j = 0; j < 5; ++j) {
+      auto chirp = session_user_followed->PostChirp(kShortText);
+      // Posting successful
+      EXPECT_NE(nullptr, chirp);
+    }
+
+    // Timestamp the current time and back it up
+    struct timeval now;
+    gettimeofday(&now, nullptr);
+    struct timeval backup_now = now;
+
+    // sleep a little while to ensure that the time has passed at least 1 usec.
+    std::this_thread::sleep_for(std::chrono::microseconds(1));
+
+    // Collect the chirp ids after the above timestamp
+    std::vector<std::string> chirp_collector;
+    for(size_t j = 0; j < 5; ++j) {
+      auto chirp = session_user_followed->PostChirp(kShortText);
+      // Posting is successful
+      EXPECT_NE(nullptr, chirp);
+      chirp_collector.push_back(chirp->id);
+    }
+
+    // Test Monitoring
+    // std::unique_ptr<ServiceDataStructure::UserSession>
+    auto session = service_data_structure_.UserLogin(user_list_[i]);
+    // Login is successful
+    EXPECT_NE(nullptr, session);
+    auto monitor_result = session->MonitorFrom(&now);
+    // `now` should be modified by the `Monitor` function
+    EXPECT_TRUE(timercmp(&backup_now, &now, !=));
+    // This ensures that the order in the `chirp_collector`
+    // The return vector from `Monitor` function has been sorted as the same way as well
+    std::sort(chirp_collector.begin(), chirp_collector.end());
+    // Check if the contents are identical
+    EXPECT_EQ(chirp_collector, monitor_result);
   }
 }
 
