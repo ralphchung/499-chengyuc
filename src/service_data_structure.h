@@ -1,6 +1,8 @@
 #ifndef CHIRP_SRC_SERVICE_DATA_STRUCTURE_H_
 #define CHIRP_SRC_SERVICE_DATA_STRUCTURE_H_
 
+#include <cassert>
+#include <climits>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -9,6 +11,8 @@
 #include <sys/time.h>
 #include <unordered_map>
 #include <vector>
+
+#define DEBUG
 
 // The data structure for the service layer
 // This stores users and chirps data.
@@ -20,15 +24,12 @@ class ServiceDataStructure {
   struct User {
     // The username of this user
     std::string username;
-    // The following list stores the usernames that this user follows
-    std::set<std::string> following_list;
-    // The chirp list stores the chirp ids that this user has posted
-    std::set<std::string> chirp_list;
     // The last posting time of this user
     struct timeval last_update_chirp_time;
 
     // Constructor that initializes the `username`.
     // Other elements are initialized by their default constructors
+    User() : username(), last_update_chirp_time() {}
     User(const std::string &username);
   };
 
@@ -50,6 +51,9 @@ class ServiceDataStructure {
 
     // The ids that reply to this chirp
     std::vector<std::string> children_ids;
+
+    Chirp() : id(), user(), parent_id(), text(), time(), children_ids() {}
+    Chirp(const std::string &user, const std::string &parent_id, const std::string &text);
   };
 
   // This user session is used for a user that has logged in
@@ -69,14 +73,14 @@ class ServiceDataStructure {
 
     // Post a chirp
     // If the `parent_id` is not specified, its default value will be an empty string.
-    // returns the newly posted chirp pointer if this operation succeeds
-    // returns nullptr otherwise
-    const struct Chirp* PostChirp(const std::string &text, const std::string &parent_id = "");
+    // returns the newly posted chirp id if this operation succeeds
+    // returns an empty string otherwise
+    std::string PostChirp(const std::string &text, const std::string &parent_id = "");
 
     // Edit a chirp
-    // returns the edited chirp pointer if this operation succeeds
-    // returns nullptr otherwise
-    const struct Chirp* EditChirp(const std::string &id, const std::string &text);
+    // returns true if this operation succeeds
+    // returns false otherwise
+    bool EditChirp(const std::string &id, const std::string &text);
 
     // Delete a chirp
     // returns true if this operation succeeds
@@ -84,31 +88,37 @@ class ServiceDataStructure {
     bool DeleteChirp(const std::string &id);
 
     // Monitor from a specified time to now
-    // returns a vector containing chirp ids
+    // returns a set containing chirp ids
     // the `struct timeval` passing in will be changed to the current time
-    std::vector<std::string> MonitorFrom(struct timeval * const from);
+    std::set<std::string> MonitorFrom(struct timeval * const from);
 
     // This returns the user's following list
-    inline const std::set<std::string> &GetUserFollowingList() {
-      return user_->following_list;
+    inline const std::set<std::string> SessionGetUserFollowingList() {
+      std::set<std::string> ret;
+      bool ok = GetUserFollowingList(user_.username, &ret);
+      assert(ok);
+      return ret;
     }
 
     // This returns the user's chirp list
-    inline const std::set<std::string> &GetUserChirpList() {
-      return user_->chirp_list;
+    inline const std::set<std::string> SessionGetUserChirpList() {
+      std::set<std::string> ret;
+      bool ok = GetUserChirpList(user_.username, &ret);
+      assert(ok);
+      return ret;
     }
 
   private:
     // Private constructor
     // This initializes the member data `user_`
-    UserSession(struct User * const user);
+    UserSession(const std::string &username);
 
     // Befriend with `ServiceDataStructure`
     // so that it can call the constructor
     friend class ServiceDataStructure;
 
     // The `User` that logs in in this session
-    struct User * const user_;
+    struct User user_;
   };
 
   // User register operation
@@ -122,26 +132,74 @@ class ServiceDataStructure {
   std::unique_ptr<UserSession> UserLogin(const std::string &username);
 
   // Chirp read operation
-  // returns a pointer to the specified chirp stored in the private member map
-  // returns nullptr if the specified id could not be found
-  // The caller should not be able to modify the content in the specified chirp
-  struct Chirp const *ReadChirp(const std::string &id);
+  // returns true if this operation succeeds
+  // return false otherwise
+  bool ReadChirp(const std::string &id, struct Chirp * const chirp);
 
  private:
   // This utility function helps maintain the `next_chirp_id_`
-  static void IncreaseNextChirpId();
+  inline static void IncreaseNextChirpId(std::string *next_chirp_id) {
+    if (next_chirp_id->back() < CHAR_MAX) {
+      ++next_chirp_id->back();
+    } else {
+      next_chirp_id->push_back(CHAR_MIN);
+    }
+  }
 
-  // This utility function generates a new chirp, insert it into the `chirpid_to_chirp_map_`,
-  // and returns the pointer pointing to it
-  static struct Chirp *GenerateNewChirp();
+  #ifdef DEBUG
 
   // This stores the next chirp id which is maintained by `IncreaseNextChirpId()`
   // and used by `GenerateNewChirp()`
   static std::string next_chirp_id_;
   // This data maps username to its corresponding `User` object
   static std::map<std::string, struct User> username_to_user_map_;
+  // This data maps username to its following list
+  static std::map<std::string, std::set<std::string> > username_to_following_map_;
+  // This data maps username to its chirp list
+  static std::map<std::string, std::set<std::string> > username_to_chirp_map_;
   // This data maps chirp id to its corresponding `Chirp` object
   static std::unordered_map<std::string, struct Chirp> chirpid_to_chirp_map_;
+
+  #endif /* DEBUG */
+
+  // Wrapper function to get `next_chirp_id`
+  static std::string GetNextChirpId();
+
+  // Wrapper function to get a specified user object
+  static bool GetUser(const std::string &username, struct User * const user);
+
+  // Wrapper function to save a specified user object
+  static bool SaveUser(const std::string &username, const struct User &user);
+
+  // Wrapper function to delete a specified user object
+  static bool DeleteUser(const std::string &username);
+
+  // Wrapper function to get the following list of a specified user
+  static bool GetUserFollowingList(const std::string &username, std::set<std::string> * const following_list);
+
+  // Wrapper function to save the following list of a specified user
+  static bool SaveUserFollowingList(const std::string &username, const std::set<std::string> &following_list);
+
+  // Wrapper function to delete the following list of a specified user
+  static bool DeleteUserFollowingList(const std::string &username);
+
+  // Wrapper function to get the chirp list of a specified user
+  static bool GetUserChirpList(const std::string &username, std::set<std::string> * const chirp_list);
+
+  // Wrapper function to save the chirp list of a specified user
+  static bool SaveUserChirpList(const std::string &username, const std::set<std::string> &chirp_list);
+
+  // Wrapper function to delete the chirp list of a specified user
+  static bool DeleteUserChirpList(const std::string &username);
+
+  // Wrapper function to get a chirp
+  static bool GetChirp(const std::string &chirp_id, struct Chirp * const chirp);
+
+  // Wrapper function to save a chirp
+  static bool SaveChirp(const std::string &chirp_id, const struct Chirp &chirp);
+
+  // Wrapper function to delete a chirp
+  static bool DeleteChirp(const std::string &chirp_id);
 };
 
 #endif /* CHIRP_SRC_SERVICE_DATA_STRUCTURE_H_ */
