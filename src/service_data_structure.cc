@@ -92,7 +92,7 @@ std::vector<std::string> ServiceDataStructure::UserSession::MonitorFrom(struct t
     auto it_user = username_to_user_map_.find(username);
     if (timercmp(&(it_user->second.last_update_chirp_time), from, >)) {
       // Do push_backs
-      for(auto &id : it_user->second.chirp_list) {
+      for(const auto &id : it_user->second.chirp_list) {
         const struct ServiceDataStructure::Chirp &chirp = chirpid_to_chirp_map_[id];
 
         if (timercmp(&(chirp.time), from, >)) {
