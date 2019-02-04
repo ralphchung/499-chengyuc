@@ -10,6 +10,13 @@
 
 #include "key_value.grpc.pb.h"
 
+#ifdef DEBUG
+#include <map>
+#include <string>
+
+std::map<std::string, std::string> key_value;
+#endif /* DEBUG */
+
 const char* kDefaultHostname = "localhost";
 const char* kDefaultPort = "50000";
 
@@ -38,6 +45,12 @@ BackendClient::~BackendClient() {}
 
 bool BackendClient::SendPutRequest(const std::string &key,
                                    const std::string &value) {
+  #ifdef DEBUG
+  key_value[key] = value;
+  return true;
+
+  #else
+
   grpc::ClientContext context;
 
   chirp::PutRequest request;
@@ -48,10 +61,19 @@ bool BackendClient::SendPutRequest(const std::string &key,
   grpc::Status status = stub_->put(&context, request, &reply);
 
   return status.ok();
+  #endif /* DEBUG */
 }
 
 bool BackendClient::SendGetRequest(const std::vector<std::string> &keys,
                                    std::vector<std::string> *reply_values) {
+  #ifdef DEBUG
+  for(const auto &key : keys) {
+    reply_values->push_back(key_value[key]);
+  }
+  return true;
+
+  #else
+
   grpc::ClientContext context;
   std::shared_ptr<grpc::ClientReaderWriter<chirp::GetRequest, chirp::GetReply>> stream(stub_->get(&context));
 
@@ -77,9 +99,16 @@ bool BackendClient::SendGetRequest(const std::vector<std::string> &keys,
   grpc::Status status = stream->Finish();
 
   return status.ok();
+
+  #endif /* DEBUG */
 }
 
 bool BackendClient::SendDeleteKeyRequest(const std::string &key) {
+  #ifdef DEBUG
+  return key_value.erase(key);
+
+  #else
+
   grpc::ClientContext context;
 
   chirp::DeleteRequest request;
@@ -89,4 +118,6 @@ bool BackendClient::SendDeleteKeyRequest(const std::string &key) {
   grpc::Status status = stub_->deletekey(&context, request, &reply);
 
   return status.ok();
+
+  #endif /* DEBUG */
 }
