@@ -135,88 +135,88 @@ class ServiceDataStructure {
 };
 
 namespace chirp_connect_backend {
-  // Binary `User` format:
-  // 0x0 - sizeof(struct timeval): struct timeval: last_update_chirp_time
-  // Remaining:  username
-  //
-  // Translate binary data to `struct User`
-  void DecomposeBinaryUser(const std::string &input, struct ServiceDataStructure::User * const user);
-  // Translate `struct User` to binary data
-  void ComposeBinaryUser(const struct ServiceDataStructure::User &user, std::string * const output);
+// Binary `User` format:
+// 0x0 - sizeof(struct timeval): struct timeval: last_update_chirp_time
+// Remaining:  username
+//
+// Translate binary data to `struct User`
+void DecomposeBinaryUser(const std::string &input, struct ServiceDataStructure::User * const user);
+// Translate `struct User` to binary data
+void ComposeBinaryUser(const struct ServiceDataStructure::User &user, std::string * const output);
 
-  // Binary `following list` format:
-  // 0x0 - 0x7 bytes: uint64_t: length of this list
-  // Remaining: array of pairs: (username.size(), username)
-  //
-  // Translate binary data to `UserFollowingList`
-  void DecomposeBinaryUserFollowing(const std::string &input, UserFollowingList * const following_list);
-  // Translate `UserFollowingList` to binary data
-  void ComposeBinaryUserFollowing(const UserFollowingList &following_list, std::string * const output);
+// Binary `following list` format:
+// 0x0 - 0x7 bytes: uint64_t: length of this list
+// Remaining: array of pairs: (username.size(), username)
+//
+// Translate binary data to `UserFollowingList`
+void DecomposeBinaryUserFollowing(const std::string &input, UserFollowingList * const following_list);
+// Translate `UserFollowingList` to binary data
+void ComposeBinaryUserFollowing(const UserFollowingList &following_list, std::string * const output);
 
-  // Binary `chirp list` format:
-  // 0x0 - 0x7 bytes: uint64_t: length of this list
-  // Remaining: uint64_t[]: array of chirp ids
-  //
-  // Translate binary data to `UserChirpList`
-  void DecomposeBinaryUserChirp(const std::string &input, UserChirpList * const chirp_list);
-  // Translate `UserChirpList` to binary data
-  void ComposeBinaryUserChirp(const UserChirpList &chirp_list, std::string * const output);
+// Binary `chirp list` format:
+// 0x0 - 0x7 bytes: uint64_t: length of this list
+// Remaining: uint64_t[]: array of chirp ids
+//
+// Translate binary data to `UserChirpList`
+void DecomposeBinaryUserChirp(const std::string &input, UserChirpList * const chirp_list);
+// Translate `UserChirpList` to binary data
+void ComposeBinaryUserChirp(const UserChirpList &chirp_list, std::string * const output);
 
-  // Binary `chirp` format:
-  // 0x0 - 0x7 bytes: uint64_t: chirp id
-  // 0x8 - 0xF bytes: uint64_t: parent_id
-  // 0x10 - 0x10 + sizeof(struct timeval) bytes: struct timeval: time
-  //     - +8bytes: uint64_t: length of username
-  //     -        : string: username
-  //     - +8bytes: uint64_t: length of text
-  //     -        : string: text
-  //     - +8bytes: uint64_t: length of vector of children chirp ids
-  // Remaining: uint64_t[]: array of children chirp ids
-  //
-  // Translate binary data to `struct Chirp`
-  void DecomposeBinaryChirp(const std::string &input, struct ServiceDataStructure::Chirp * const chirp);
-  // Translate `struct Chirp` to binary data
-  void ComposeBinaryChirp(const struct ServiceDataStructure::Chirp &chirp, std::string * const output);
+// Binary `chirp` format:
+// 0x0 - 0x7 bytes: uint64_t: chirp id
+// 0x8 - 0xF bytes: uint64_t: parent_id
+// 0x10 - 0x10 + sizeof(struct timeval) bytes: struct timeval: time
+//     - +8bytes: uint64_t: length of username
+//     -        : string: username
+//     - +8bytes: uint64_t: length of text
+//     -        : string: text
+//     - +8bytes: uint64_t: length of vector of children chirp ids
+// Remaining: uint64_t[]: array of children chirp ids
+//
+// Translate binary data to `struct Chirp`
+void DecomposeBinaryChirp(const std::string &input, struct ServiceDataStructure::Chirp * const chirp);
+// Translate `struct Chirp` to binary data
+void ComposeBinaryChirp(const struct ServiceDataStructure::Chirp &chirp, std::string * const output);
 
-  // Wrapper function to get `next_chirp_id`
-  uint64_t GetNextChirpId();
+// Wrapper function to get `next_chirp_id`
+uint64_t GetNextChirpId();
 
-  // Wrapper function to get a specified user object
-  bool GetUser(const std::string &username, struct ServiceDataStructure::User * const user);
+// Wrapper function to get a specified user object
+bool GetUser(const std::string &username, struct ServiceDataStructure::User * const user);
 
-  // Wrapper function to save a specified user object
-  bool SaveUser(const std::string &username, const struct ServiceDataStructure::User &user);
+// Wrapper function to save a specified user object
+bool SaveUser(const std::string &username, const struct ServiceDataStructure::User &user);
 
-  // Wrapper function to delete a specified user object
-  bool DeleteUser(const std::string &username);
+// Wrapper function to delete a specified user object
+bool DeleteUser(const std::string &username);
 
-  // Wrapper function to get the following list of a specified user
-  bool GetUserFollowingList(const std::string &username, UserFollowingList * const following_list);
+// Wrapper function to get the following list of a specified user
+bool GetUserFollowingList(const std::string &username, UserFollowingList * const following_list);
 
-  // Wrapper function to save the following list of a specified user
-  bool SaveUserFollowingList(const std::string &username, const UserFollowingList &following_list);
+// Wrapper function to save the following list of a specified user
+bool SaveUserFollowingList(const std::string &username, const UserFollowingList &following_list);
 
-  // Wrapper function to delete the following list of a specified user
-  bool DeleteUserFollowingList(const std::string &username);
+// Wrapper function to delete the following list of a specified user
+bool DeleteUserFollowingList(const std::string &username);
 
-  // Wrapper function to get the chirp list of a specified user
-  bool GetUserChirpList(const std::string &username, UserChirpList * const chirp_list);
+// Wrapper function to get the chirp list of a specified user
+bool GetUserChirpList(const std::string &username, UserChirpList * const chirp_list);
 
-  // Wrapper function to save the chirp list of a specified user
-  bool SaveUserChirpList(const std::string &username, const UserChirpList &chirp_list);
+// Wrapper function to save the chirp list of a specified user
+bool SaveUserChirpList(const std::string &username, const UserChirpList &chirp_list);
 
-  // Wrapper function to delete the chirp list of a specified user
-  bool DeleteUserChirpList(const std::string &username);
+// Wrapper function to delete the chirp list of a specified user
+bool DeleteUserChirpList(const std::string &username);
 
-  // Wrapper function to get a chirp
-  bool GetChirp(const uint64_t &chirp_id, struct ServiceDataStructure::Chirp * const chirp);
+// Wrapper function to get a chirp
+bool GetChirp(const uint64_t &chirp_id, struct ServiceDataStructure::Chirp * const chirp);
 
-  // Wrapper function to save a chirp
-  bool SaveChirp(const uint64_t &chirp_id, const struct ServiceDataStructure::Chirp &chirp);
+// Wrapper function to save a chirp
+bool SaveChirp(const uint64_t &chirp_id, const struct ServiceDataStructure::Chirp &chirp);
 
-  // Wrapper function to delete a chirp
-  bool DeleteChirp(const uint64_t &chirp_id);
-}
+// Wrapper function to delete a chirp
+bool DeleteChirp(const uint64_t &chirp_id);
+} /* namespace chirp_connect_backend */
 
 inline const UserFollowingList ServiceDataStructure::UserSession::SessionGetUserFollowingList() {
   UserFollowingList ret;

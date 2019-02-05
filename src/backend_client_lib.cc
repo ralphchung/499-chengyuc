@@ -10,6 +10,8 @@
 
 #include "key_value.grpc.pb.h"
 
+// TODO: remove the `DEBUG` part of this and use the same code path in the implementation
+// do the debug code path in some other places
 #ifdef DEBUG
 #include <map>
 #include <string>
@@ -45,6 +47,7 @@ BackendClient::~BackendClient() {}
 
 bool BackendClient::SendPutRequest(const std::string &key,
                                    const std::string &value) {
+  // TODO: remove the `DEBUG` part
   #ifdef DEBUG
   key_value[key] = value;
   return true;
@@ -66,8 +69,9 @@ bool BackendClient::SendPutRequest(const std::string &key,
 
 bool BackendClient::SendGetRequest(const std::vector<std::string> &keys,
                                    std::vector<std::string> *reply_values) {
+  // TODO: remove the `DEBUG` part
   #ifdef DEBUG
-  for(const auto &key : keys) {
+  for (const auto &key : keys) {
     reply_values->push_back(key_value[key]);
   }
   return true;
@@ -104,6 +108,7 @@ bool BackendClient::SendGetRequest(const std::vector<std::string> &keys,
 }
 
 bool BackendClient::SendDeleteKeyRequest(const std::string &key) {
+  // TODO: remove the `DEBUG` part
   #ifdef DEBUG
   return key_value.erase(key);
 
