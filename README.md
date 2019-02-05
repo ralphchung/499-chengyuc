@@ -34,6 +34,12 @@ $ [sudo] make
 $ [sudo] cp *.a /usr/lib
 ```
 
+## glog
+### Installation
+```
+$ [sudo] apt install libgoogle-glog-dev
+```
+
 # Components
 ## *.proto files
 ```
@@ -57,4 +63,9 @@ $ ./backend_test
 ```
 $ make service_test
 $ ./service_test
+```
+#### service_test: debug version
+```
+$ make service_test_debug
+$ ./service_test_debug
 ```

@@ -6,18 +6,15 @@
 #include <thread>
 #include <vector>
 
+#include <glog/logging.h>
 #include "gtest/gtest.h"
 
 #include "service_data_structure.h"
 
 namespace {
 
-std::string PrintId(const std::string &id) {
-  std::string ret;
-  for(char c : id) {
-    ret += std::to_string(int(c));
-    ret += ' ';
-  }
+uint64_t PrintId(const std::string &id) {
+  return *(reinterpret_cast<const uint64_t*>(id.c_str()));
 }
 
 const size_t kNumOfUsersPreset = 10;
@@ -32,7 +29,7 @@ class ServiceTest : public ::testing::Test {
     for(size_t i = 0; i < kNumOfUsersTotal; ++i) {
       user_list_.push_back(std::string("user") + std::to_string(i));
       if (i < kNumOfUsersPreset) {
-        service_data_structure_.UserRegister(user_list_[i]);
+        bool ok = service_data_structure_.UserRegister(user_list_[i]);
       }
     }
   }
@@ -66,6 +63,10 @@ TEST_F(ServiceTest, UserRegisterAndLoginTest) {
     EXPECT_NE(nullptr, session_2);
     // Multiple logins are allowed
     EXPECT_NE(session_1, session_2);
+
+    // Check username is identical
+    EXPECT_EQ(user_list_[i], session_1->SessionGetUsername());
+    EXPECT_EQ(user_list_[i], session_2->SessionGetUsername());
   }
 
   // Try to login to a non-existing username
@@ -100,31 +101,34 @@ TEST_F(ServiceTest, PostEditAndDeleteTest) {
   for(size_t i = 0; i < kNumOfUsersPreset; ++i) {
     // std::unique_ptr<ServiceDataStructure::UserSession>
     auto session = service_data_structure_.UserLogin(user_list_[i]);
-    std::vector<std::string> chirp_ids;
+    std::vector<uint64_t> chirp_ids;
 
     ASSERT_NE(nullptr, session);
 
+    EXPECT_EQ(user_list_[i], session->SessionGetUsername());
+
     // Test Posting
-    std::string parent_id("");
+    uint64_t parent_id = 0;
     for(size_t j = 0; j < kTestCase; ++j) {
-      auto *chirp = session->PostChirp(chirps_content[j], parent_id);
+      uint64_t chirp_id = session->PostChirp(chirps_content[j], parent_id);
       // Posting is successful
-      ASSERT_NE(chirp, nullptr);
-      parent_id = chirp->id;
-      chirp_ids.push_back(chirp->id);
+      ASSERT_NE(0, chirp_id);
+      parent_id = chirp_id;
+      chirp_ids.push_back(chirp_id);
     }
 
     // Read from backend
     // to see if the results are identical
     std::vector<std::string> chirps_content_from_backend;
-    std::string last_id("");
-    for(auto& id : session->GetUserChirpList()) {
-      const ServiceDataStructure::Chirp *chirp = service_data_structure_.ReadChirp(id);
+    uint64_t last_id = 0;
+    for(const auto& id : session->SessionGetUserChirpList()) {
+      struct ServiceDataStructure::Chirp chirp;
+      bool ok = service_data_structure_.ReadChirp(id, &chirp);
       // Reading is successful
-      ASSERT_NE(nullptr, chirp);
-      EXPECT_EQ(last_id, chirp->parent_id);
-      last_id = chirp->id;
-      chirps_content_from_backend.push_back(chirp->text);
+      ASSERT_TRUE(ok);
+      EXPECT_EQ(last_id, chirp.parent_id);
+      last_id = chirp.id;
+      chirps_content_from_backend.push_back(chirp.text);
     }
     // Check if the contents are identical
     EXPECT_EQ(chirps_content, chirps_content_from_backend); 
@@ -132,17 +136,18 @@ TEST_F(ServiceTest, PostEditAndDeleteTest) {
     // Test Editing
     chirps_content_from_backend.clear();
     for(size_t j = 0; j < chirp_ids.size(); ++j) {
-      const ServiceDataStructure::Chirp *chirp = session->EditChirp(chirp_ids[j], chirps_content_after_edit[j]);
+      auto ok = session->EditChirp(chirp_ids[j], chirps_content_after_edit[j]);
       // Editing is successful
-      ASSERT_NE(nullptr, chirp);
+      ASSERT_TRUE(ok);
     }
 
     // Read from backend
     // to see if the results are identical
-    for(auto& id : session->GetUserChirpList()) {
-      const ServiceDataStructure::Chirp *chirp = service_data_structure_.ReadChirp(id);
-      ASSERT_NE(nullptr, chirp);
-      chirps_content_from_backend.push_back(chirp->text);
+    for(auto& id : session->SessionGetUserChirpList()) {
+      struct ServiceDataStructure::Chirp chirp;
+      bool ok = service_data_structure_.ReadChirp(id, &chirp);
+      ASSERT_TRUE(ok);
+      chirps_content_from_backend.push_back(chirp.text);
     }
     // Check if the contents are identical
     EXPECT_EQ(chirps_content_after_edit, chirps_content_from_backend);
@@ -160,11 +165,12 @@ TEST_F(ServiceTest, PostEditAndDeleteTest) {
 
     // Read from backend
     // to see if the results are identical
-    for(auto& id : session->GetUserChirpList()) {
-      const ServiceDataStructure::Chirp *chirp = service_data_structure_.ReadChirp(id);
+    for(auto& id : session->SessionGetUserChirpList()) {
+      struct ServiceDataStructure::Chirp chirp;
+      bool ok = service_data_structure_.ReadChirp(id, &chirp);
       // Reading is successful
-      ASSERT_NE(nullptr, chirp);
-      chirps_content_from_backend.push_back(chirp->text);
+      ASSERT_TRUE(ok);
+      chirps_content_from_backend.push_back(chirp.text);
     }
     // Check if the contents are identical
     EXPECT_EQ(chirps_content_after_delete, chirps_content_from_backend);
@@ -192,9 +198,9 @@ TEST_F(ServiceTest, FollowAndMonitorTest) {
 
     // Post some dont-care chirps from the followed user
     for(size_t j = 0; j < 5; ++j) {
-      auto chirp = session_user_followed->PostChirp(kShortText);
+      uint64_t chirp_id = session_user_followed->PostChirp(kShortText);
       // Posting successful
-      EXPECT_NE(nullptr, chirp);
+      EXPECT_NE(0, chirp_id);
     }
 
     // Timestamp the current time and back it up
@@ -206,12 +212,12 @@ TEST_F(ServiceTest, FollowAndMonitorTest) {
     std::this_thread::sleep_for(std::chrono::microseconds(1));
 
     // Collect the chirp ids after the above timestamp
-    std::vector<std::string> chirp_collector;
+    std::set<uint64_t> chirp_collector;
     for(size_t j = 0; j < 5; ++j) {
-      auto chirp = session_user_followed->PostChirp(kShortText);
+      auto chirp_id = session_user_followed->PostChirp(kShortText);
       // Posting is successful
-      EXPECT_NE(nullptr, chirp);
-      chirp_collector.push_back(chirp->id);
+      EXPECT_NE(0, chirp_id);
+      chirp_collector.insert(chirp_id);
     }
 
     // Test Monitoring
@@ -222,9 +228,6 @@ TEST_F(ServiceTest, FollowAndMonitorTest) {
     auto monitor_result = session->MonitorFrom(&now);
     // `now` should be modified by the `Monitor` function
     EXPECT_TRUE(timercmp(&backup_now, &now, !=));
-    // This ensures that the order in the `chirp_collector`
-    // The return vector from `Monitor` function has been sorted as the same way as well
-    std::sort(chirp_collector.begin(), chirp_collector.end());
     // Check if the contents are identical
     EXPECT_EQ(chirp_collector, monitor_result);
   }
@@ -233,6 +236,12 @@ TEST_F(ServiceTest, FollowAndMonitorTest) {
 } // end of namespace
 
 GTEST_API_ int main(int argc, char **argv) {
+  // glog initialization
+  FLAGS_log_dir = "./log";
+  google::InitGoogleLogging(argv[0]);
+
+  LOG(INFO) << "glog on testing starts.";
+
   std::cout << "Running service tests from " << __FILE__ << std::endl;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
