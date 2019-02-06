@@ -19,8 +19,10 @@
 std::map<std::string, std::string> key_value;
 #endif /* DEBUG */
 
+namespace {
 const char* kDefaultHostname = "localhost";
 const char* kDefaultPort = "50000";
+} // Anonymous namespace
 
 BackendClient::BackendClient()
     : host_(kDefaultHostname), port_(kDefaultPort) {

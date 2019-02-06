@@ -9,6 +9,7 @@
 #include <glog/logging.h>
 #include "gtest/gtest.h"
 
+#include "service_client_lib.h"
 #include "service_data_structure.h"
 
 namespace {
@@ -22,7 +23,7 @@ const size_t kNumOfUsersTotal = 20;
 const char *kShortText = "short";
 const char *kLongText = "longlonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglong";
 
-class ServiceTest : public ::testing::Test {
+class ServiceTestDataStructure : public ::testing::Test {
  protected:
   void SetUp() override {
     // Set up users
@@ -38,7 +39,7 @@ class ServiceTest : public ::testing::Test {
   ServiceDataStructure service_data_structure_;
 };
 
-TEST_F(ServiceTest, UserRegisterAndLoginTest) {
+TEST_F(ServiceTestDataStructure, UserRegisterAndLoginTest) {
   // Try to register existed usernames
   for(size_t i = 0; i < kNumOfUsersPreset; ++i) {
     bool ok = service_data_structure_.UserRegister(user_list_[i]);
@@ -75,7 +76,7 @@ TEST_F(ServiceTest, UserRegisterAndLoginTest) {
   EXPECT_EQ(nullptr, session);
 }
 
-TEST_F(ServiceTest, PostEditAndDeleteTest) {
+TEST_F(ServiceTestDataStructure, PostEditAndDeleteTest) {
   const size_t kTestCase = 10;
   const size_t kHalfTestCase = kTestCase / 2;
 
@@ -177,7 +178,7 @@ TEST_F(ServiceTest, PostEditAndDeleteTest) {
   }
 }
 
-TEST_F(ServiceTest, FollowAndMonitorTest) {
+TEST_F(ServiceTestDataStructure, FollowAndMonitorTest) {
   // Each user follows the next user
   for(size_t i = 0; i < kNumOfUsersPreset; ++i) {
     // std::unique_ptr<ServiceDataStructure::UserSession>
@@ -230,6 +231,131 @@ TEST_F(ServiceTest, FollowAndMonitorTest) {
     EXPECT_TRUE(timercmp(&backup_now, &now, !=));
     // Check if the contents are identical
     EXPECT_EQ(chirp_collector, monitor_result);
+  }
+}
+
+class ServiceTestServer : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    // Set up users list
+    for (size_t i = 0; i < kNumOfUsersTotal; ++i) {
+      user_list_.push_back(std::string("User") + std::to_string(i));
+
+      if (i < kNumOfUsersPreset) {
+        bool ok = service_client_.SendRegisterUserRequest(user_list_[i]);
+      }
+    }
+  }
+
+  std::vector<std::string> user_list_;
+  ServiceClient service_client_;
+};
+
+TEST_F(ServiceTestServer, RegisterUser) {
+  // Try to register existed usernames
+  for(size_t i = 0; i < kNumOfUsersPreset; ++i) {
+    bool ok = service_client_.SendRegisterUserRequest(user_list_[i]);
+    // This should fail since the username specified has already been registered in the `SetUp` process above
+    EXPECT_FALSE(ok) << "This should fail since the username specified has been registered.";
+  }
+
+  // Try to register non-existed usernames
+  for(size_t i = kNumOfUsersPreset; i < kNumOfUsersTotal; ++i) {
+    bool ok = service_client_.SendRegisterUserRequest(user_list_[i]);
+    // This should succeed since the username specified is not registered
+    EXPECT_TRUE(ok) << "This registration should succeed.";
+  }
+
+  // Try to register all usernames again
+  for(size_t i = 0; i < kNumOfUsersTotal; ++i) {
+    bool ok = service_client_.SendRegisterUserRequest(user_list_[i]);
+    EXPECT_FALSE(ok) << "This should fail since the username specified has been registered.";
+  }
+}
+
+TEST_F(ServiceTestServer, Chirp) {
+  // Every user posts a chirp
+  uint64_t last_id = 0;
+  for (size_t i = 0; i < kNumOfUsersTotal; ++i) {
+    struct ServiceClient::Chirp chirp;
+    bool ok = service_client_.SendChirpRequest(user_list_[i], kShortText, last_id, &chirp);
+    EXPECT_EQ(user_list_[i], chirp.username);
+    EXPECT_EQ(kShortText, chirp.text);
+    EXPECT_EQ(last_id, chirp.parent_id);
+    last_id = chirp.id;
+  }
+}
+
+TEST_F(ServiceTestServer, Follow) {
+  for(size_t i = 0; i < kNumOfUsersTotal; ++i) {
+    bool ok = service_client_.SendFollowRequest(user_list_[i], user_list_[(i + 1) % kNumOfUsersTotal]);
+    EXPECT_TRUE(ok);
+    ok = service_client_.SendFollowRequest(user_list_[i], "non-existed");
+    EXPECT_FALSE(ok);
+  }
+}
+
+TEST_F(ServiceTestServer, Read) {
+  std::vector<uint64_t> corrected_chirps;
+  for(size_t i = 0; i < 1; ++i) {
+    corrected_chirps.clear();
+    ServiceClient::Chirp chirp;
+
+    // Layer 1
+    bool ok = service_client_.SendChirpRequest(user_list_[i], kShortText, 0, &chirp);
+    EXPECT_TRUE(ok);
+    corrected_chirps.push_back(chirp.id);
+
+    // Layer 2
+    for (size_t j = 0; j < 3; ++j) {
+      ok = service_client_.SendChirpRequest(user_list_[i], kShortText, corrected_chirps[0], &chirp);
+      EXPECT_TRUE(ok);
+      corrected_chirps.push_back(chirp.id);
+    }
+
+    // Layer 3
+    std::vector<uint64_t> tmp;
+    for(size_t j = 0; j < 3; ++j) {
+      ok = service_client_.SendChirpRequest(user_list_[i], kShortText, corrected_chirps[1], &chirp);
+      EXPECT_TRUE(ok);
+      tmp.push_back(chirp.id);
+    }
+    corrected_chirps.insert(corrected_chirps.begin() + 2, tmp.begin(), tmp.end());
+
+    std::vector<struct ServiceClient::Chirp> reply;
+    ok = service_client_.SendReadRequest(corrected_chirps[0], &reply);
+    EXPECT_TRUE(ok);
+    for(size_t j = 0; j < corrected_chirps.size(); ++j) {
+      EXPECT_EQ(user_list_[i], reply[j].username);
+      EXPECT_EQ(corrected_chirps[j], reply[j].id);
+    }
+  }
+}
+
+TEST_F(ServiceTestServer, Monitor) {
+  // Make the last user to follow all other users
+  for(size_t i = 0; i < kNumOfUsersTotal - 1; ++i) {
+    // Don't care about the return value of this
+    service_client_.SendFollowRequest(user_list_.back(), user_list_[i]);
+  }
+
+  std::vector<uint64_t> chirpids;
+  std::thread posting_chirps([&]() {
+    for(size_t i = 0; i < kNumOfUsersTotal - 1; ++i) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      ServiceClient::Chirp chirp;
+      service_client_.SendChirpRequest(user_list_[i], kShortText, 0, &chirp);
+      chirpids.push_back(chirp.id);
+    }
+  });
+
+  std::vector<ServiceClient::Chirp> chirps;
+  service_client_.SendMonitorRequest(user_list_.back(), &chirps);
+
+  posting_chirps.join();
+
+  for(size_t i = 0; i < chirpids.size(); ++i) {
+    EXPECT_EQ(chirpids[i], chirps[i].id) << " i is " << i << std::endl;
   }
 }
 
