@@ -109,6 +109,8 @@ bool ServiceClient::SendMonitorRequest(const std::string &username,
 
   std::unique_ptr<grpc::ClientReader<chirp::MonitorReply> > reader(stub_->monitor(&context, request));
 
+  std::cout << "Ctrl + C to terminate\n";
+
   chirp::MonitorReply reply;
   while (reader->Read(&reply)) {
     struct ServiceClient::Chirp client_chirp;
