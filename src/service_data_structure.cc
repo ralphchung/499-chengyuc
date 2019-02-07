@@ -136,7 +136,7 @@ std::set<uint64_t> ServiceDataStructure::UserSession::MonitorFrom(struct timeval
     ok = chirp_connect_backend::GetUser(username, &user);
     CHECK(ok) << "User `" << username << "` should exist.";
 
-    if (timercmp(&(user.last_update_chirp_time), from, >)) {
+    if (timercmp(&(user.last_update_chirp_time), from, >=)) {
       // Do push_backs
       UserChirpList user_chirp_list;
       ok = chirp_connect_backend::GetUserChirpList(user.username, &user_chirp_list);
@@ -147,7 +147,7 @@ std::set<uint64_t> ServiceDataStructure::UserSession::MonitorFrom(struct timeval
         ok = chirp_connect_backend::GetChirp(chirp_id, &chirp);
         CHECK(ok) << "The chirp with chirp_id `" << chirp_id << "` should exist.";
 
-        if (timercmp(&(chirp.time), from, >)) {
+        if (timercmp(&(chirp.time), from, >=) && timercmp(&(chirp.time), &now, <)) {
           ret.insert(chirp_id);
         }
       }

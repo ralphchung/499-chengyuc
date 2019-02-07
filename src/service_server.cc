@@ -139,37 +139,38 @@ grpc::Status ServiceImpl::monitor(
 
   // This indicates that the stream is still on
   int cnt = 0;
-  std::set<uint64_t> chirps_collector;
-  while(cnt < times_count) {
+  bool flag = true;
+
+  while(flag && cnt < times_count) {
+    // sleep a while to avoid busy polling
     std::this_thread::sleep_for(std::chrono::milliseconds(mseconds_per_wait));
 
     // `start_time` will be modified to the time backend collects the chirps
-    std::set<uint64_t> tmp = user_session->MonitorFrom(&start_time);
+    std::set<uint64_t> chirps_collector = user_session->MonitorFrom(&start_time);
 
-    if (tmp.size() > 0) {
-      chirps_collector.insert(tmp.begin(), tmp.end());
+    // May use a thread to do the following things
+    if (chirps_collector.size() > 0) {
+      for(const auto &chirp_id : chirps_collector) {
+        struct ServiceDataStructure::Chirp internal_chirp;
+        bool ok = service_data_structure_.ReadChirp(chirp_id, &internal_chirp);
+        if (!ok) {
+          continue;
+        }
+
+        chirp::MonitorReply reply;
+        chirp::Chirp *grpc_chirp = new chirp::Chirp();
+        InternalChirpToGrpcChirp(internal_chirp, grpc_chirp);
+        reply.set_allocated_chirp(grpc_chirp);
+
+        if (!writer->Write(reply)) {
+          flag = false;
+          break;
+        }
+      }
+
       cnt = 0;
-    }
-
-    // sleep for a while on this thread
-    ++cnt;
-  }
-
-  // TODO: may use a thread to do this
-  for(const auto &chirp_id : chirps_collector) {
-    struct ServiceDataStructure::Chirp internal_chirp;
-    bool ok = service_data_structure_.ReadChirp(chirp_id, &internal_chirp);
-    if (!ok) {
-      continue;
-    }
-
-    chirp::MonitorReply reply;
-    chirp::Chirp *grpc_chirp = new chirp::Chirp();
-    InternalChirpToGrpcChirp(internal_chirp, grpc_chirp);
-    reply.set_allocated_chirp(grpc_chirp);
-
-    if (!writer->Write(reply)) {
-      break;
+    } else {
+      ++cnt;
     }
   }
 
