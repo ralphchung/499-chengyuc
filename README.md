@@ -59,6 +59,15 @@ $ ./backend_server
 $ make backend_test
 $ ./backend_test
 ```
+
+## Service layer
+### Server
+```
+$ make service_server
+$ ./service_server
+```
+
+### Unit Test
 #### service_test
 ```
 $ make service_test
