@@ -125,7 +125,7 @@ grpc::Status ServiceImpl::monitor(
   }
 
   const int mseconds_per_wait = 50;
-  const int times_count = 10;
+  const int times_count = INT_MAX;
 
   struct timeval start_time;
   gettimeofday(&start_time, nullptr);
