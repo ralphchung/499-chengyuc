@@ -99,7 +99,6 @@ int command_tool::Monitor(const std::string &username) {
   }
 
   std::vector<struct ServiceClient::Chirp> chirps;
-
   bool flag = true;
 
   std::thread print_chirps([&]() {
@@ -119,9 +118,7 @@ int command_tool::Monitor(const std::string &username) {
   });
 
   bool ok = service_client.SendMonitorRequest(username, &chirps);
-
   flag = false;
-
   print_chirps.join();
 
   return (!ok);
