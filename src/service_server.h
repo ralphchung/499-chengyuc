@@ -58,7 +58,10 @@ class ServiceImpl final : public chirp::ServiceLayer::Service {
 
   // This is a helper function that helps traverse all children chirps within a chirp
   // in a DFS manner.
-  void DFSScanChirps(chirp::ReadReply * const reply, const uint64_t &chirp_id);
+  ServiceDataStructure::ReturnCodes DFSScanChirps(chirp::ReadReply * const reply, const uint64_t &chirp_id);
+
+  // This is a helper function that helps translate `ReturnCodes` to `grpc::Status`
+  grpc::Status ReturnCodesToGrpcStatus(const ServiceDataStructure::ReturnCodes &ret);
 
   // This is a helper function that takes a series of bytes and translate them into
   // an unsigned 64-bit interger.

@@ -1,8 +1,9 @@
-#include "command_line_tool_lib.h"
 
 #include <string>
 
 #include <gflags/gflags.h>
+
+#include "command_line_tool_lib.h"
 
 DEFINE_string(register, "", "");
 DEFINE_string(user, "", "");
@@ -29,8 +30,8 @@ int main(int argc, char **argv) {
     return command_tool::Monitor(FLAGS_user);
   } else {
     std::cout << command_tool::usage;
-    return 1;
+    return ServiceClient::INVALID_ARGUMENT;
   }
 
-  return 0;
+  return ServiceClient::OK;
 }

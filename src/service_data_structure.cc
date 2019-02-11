@@ -13,7 +13,7 @@ ServiceDataStructure::UserSession::UserSession(const std::string &username) {
   CHECK(ok) << "User `" << username << "` should exist.";
 }
 
-bool ServiceDataStructure::UserSession::Follow(const std::string &username) {
+ServiceDataStructure::ReturnCodes ServiceDataStructure::UserSession::Follow(const std::string &username) {
   UserFollowingList following_list;
   bool ok = chirp_connect_backend::GetUserFollowingList(user_.username, &following_list);
   CHECK(ok) << "The user following list for user `" << username << "` should exist.";
@@ -23,24 +23,41 @@ bool ServiceDataStructure::UserSession::Follow(const std::string &username) {
   // The specifed user is found
   if (user_found) {
     following_list.insert(username);
-    return chirp_connect_backend::SaveUserFollowingList(user_.username, following_list);
+    if (chirp_connect_backend::SaveUserFollowingList(user_.username, following_list)) {
+      return OK;
+    } else {
+      return INTENRAL_BACKEND_ERROR;
+    }
   } else {
-    return false;
+    return FOLLOWEE_NOT_FOUND;
   }
+
+  // Should not enter this line
+  return UNKOWN_ERROR;
 }
 
-bool ServiceDataStructure::UserSession::Unfollow(const std::string &username) {
+ServiceDataStructure::ReturnCodes ServiceDataStructure::UserSession::Unfollow(const std::string &username) {
   UserFollowingList following_list;
   bool ok = chirp_connect_backend::GetUserFollowingList(user_.username, &following_list);
   CHECK(ok) << "The user following list for user `" << username << "` should exist.";
 
   // If the specifed user is erased
   bool erased = following_list.erase(username);
-  return erased && chirp_connect_backend::SaveUserFollowingList(user_.username, following_list);
+  if (!erased) {
+    return FOLLOWEE_NOT_FOUND;
+  } else if (!chirp_connect_backend::SaveUserFollowingList(user_.username, following_list)) {
+    return INTENRAL_BACKEND_ERROR;
+  } else {
+    return OK;
+  }
+
+  // Should not enter this line
+  return UNKOWN_ERROR;
 }
 
-uint64_t ServiceDataStructure::UserSession::PostChirp(
+ServiceDataStructure::ReturnCodes ServiceDataStructure::UserSession::PostChirp(
     const std::string &text,
+    uint64_t * const chirp_id,
     const uint64_t &parent_id) {
 
   struct Chirp chirp(user_.username, parent_id, text);
@@ -50,26 +67,26 @@ uint64_t ServiceDataStructure::UserSession::PostChirp(
     struct Chirp parent_chirp;
     bool parent_found = chirp_connect_backend::GetChirp(parent_id, &parent_chirp);
     if (!parent_found) {
-      return 0;
+      return REPLY_ID_NOT_FOUND;
     }
 
     parent_chirp.children_ids.push_back(chirp.id);
     bool ok = chirp_connect_backend::SaveChirp(parent_chirp.id, parent_chirp);
     if (!ok) {
-      return 0;
+      return INTENRAL_BACKEND_ERROR;
     }
   }
 
   bool ok = chirp_connect_backend::SaveChirp(chirp.id, chirp);
   if (!ok) {
-    return 0;
+    return INTENRAL_BACKEND_ERROR;
   }
 
   // Update the information of this user
   user_.last_update_chirp_time = chirp.time;
   ok = chirp_connect_backend::SaveUser(user_.username, user_);
   if (!ok) {
-    return 0;
+    return INTENRAL_BACKEND_ERROR;
   }
 
   UserChirpList chirp_list;
@@ -78,35 +95,47 @@ uint64_t ServiceDataStructure::UserSession::PostChirp(
   chirp_list.insert(chirp.id);
   ok = chirp_connect_backend::SaveUserChirpList(user_.username, chirp_list);
   if (!ok) {
-    return 0;
+    return INTENRAL_BACKEND_ERROR;
   }
 
-  return chirp.id;
+  if (chirp_id != nullptr) {
+    *chirp_id = chirp.id;
+  }
+  return OK;
 }
 
-bool ServiceDataStructure::UserSession::EditChirp(
+ServiceDataStructure::ReturnCodes ServiceDataStructure::UserSession::EditChirp(
     const uint64_t &id,
     const std::string &text) {
 
   struct Chirp chirp;
   bool ok = chirp_connect_backend::GetChirp(id, &chirp);
 
-  // If the chirp is found and its posting user is the user in this session
-  if (ok && chirp.user == user_.username) {
+  if (!ok) {
+    return CHIRP_ID_NOT_FOUND;
+  } else if (chirp.user != user_.username) {
+    return PERMISSION_DENIED;
+  } else {
+    // If the chirp is found and its posting user is the user in this session
     chirp.text = text;
     ok = chirp_connect_backend::SaveChirp(id, chirp);
-    return ok;
+    return OK;
   }
 
-  return false;
+  // Should not enter this line9
+  return UNKOWN_ERROR;
 }
 
-bool ServiceDataStructure::UserSession::DeleteChirp(const uint64_t &id) {
+ServiceDataStructure::ReturnCodes ServiceDataStructure::UserSession::DeleteChirp(const uint64_t &id) {
   struct Chirp chirp;
   bool ok = chirp_connect_backend::GetChirp(id, &chirp);
 
-  // If the chirp is found and its posting user is the user in this session
-  if (ok && chirp.user == user_.username) {
+  if (!ok) {
+    return CHIRP_ID_NOT_FOUND;
+  } else if (chirp.user != user_.username) {
+    return PERMISSION_DENIED;
+  } else {
+    // If the chirp is found and its posting user is the user in this session
     UserChirpList chirp_list;
     ok = chirp_connect_backend::GetUserChirpList(user_.username, &chirp_list);
     CHECK(ok) << "The user chirp list for user `" << user_.username << "` should exist.";
@@ -114,10 +143,15 @@ bool ServiceDataStructure::UserSession::DeleteChirp(const uint64_t &id) {
     chirp_list.erase(chirp.id);
     ok = chirp_connect_backend::DeleteChirp(id);
     ok &= chirp_connect_backend::SaveUserChirpList(user_.username, chirp_list);
-    return ok;
+    if (ok) {
+      return OK;
+    } else {
+      return INTENRAL_BACKEND_ERROR;
+    }
   }
 
-  return false;
+  // Should not enter this line
+  return UNKOWN_ERROR;
 }
 
 std::set<uint64_t> ServiceDataStructure::UserSession::MonitorFrom(struct timeval * const from) {
@@ -158,10 +192,10 @@ std::set<uint64_t> ServiceDataStructure::UserSession::MonitorFrom(struct timeval
   return ret;
 }
 
-bool ServiceDataStructure::UserRegister(const std::string &username) {
+ServiceDataStructure::ReturnCodes ServiceDataStructure::UserRegister(const std::string &username) {
   // Invalid username
   if (username.empty()) {
-    return false;
+    return INVALID_ARGUMENT;
   }
 
   bool user_found = chirp_connect_backend::GetUser(username, nullptr);
@@ -177,11 +211,16 @@ bool ServiceDataStructure::UserRegister(const std::string &username) {
       chirp_connect_backend::DeleteUser(username);
       chirp_connect_backend::DeleteUserChirpList(username);
       chirp_connect_backend::DeleteUserFollowingList(username);
+      return INTENRAL_BACKEND_ERROR;
+    } else {
+      return OK;
     }
-    return ok;
+  } else {
+    return USER_EXISTS;
   }
 
-  return false;
+  // Should not enter this line
+  return UNKOWN_ERROR;
 }
 
 std::unique_ptr<ServiceDataStructure::UserSession> ServiceDataStructure::UserLogin(const std::string &username) {

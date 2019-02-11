@@ -27,7 +27,7 @@ ServiceClient::ServiceClient(const std::string &host, const std::string &port)
   InitChannelAndStub();
 }
 
-bool ServiceClient::SendRegisterUserRequest(const std::string &username) {
+ServiceClient::ReturnCodes ServiceClient::SendRegisterUserRequest(const std::string &username) {
   grpc::ClientContext context;
 
   chirp::RegisterRequest request;
@@ -37,13 +37,15 @@ bool ServiceClient::SendRegisterUserRequest(const std::string &username) {
 
   grpc::Status status = stub_->registeruser(&context, request, &reply);
 
-  return status.ok();
+  return GrpcStatusToReturnCodes(status);
 }
 
-bool ServiceClient::SendChirpRequest(const std::string &username,
-                                     const std::string &text,
-                                     const uint64_t &parent_id,
-                                     struct ServiceClient::Chirp * const chirp) {
+ServiceClient::ReturnCodes ServiceClient::SendChirpRequest(
+    const std::string &username,
+    const std::string &text,
+    const uint64_t &parent_id,
+    struct ServiceClient::Chirp * const chirp) {
+
   grpc::ClientContext context;
 
   chirp::ChirpRequest request;
@@ -60,10 +62,13 @@ bool ServiceClient::SendChirpRequest(const std::string &username,
     GrpcChirpToClientChirp(reply.chirp(), chirp);
   }
 
-  return status.ok();
+  return GrpcStatusToReturnCodes(status);
 }
 
-bool ServiceClient::SendFollowRequest(const std::string &username, const std::string &to_follow) {
+ServiceClient::ReturnCodes ServiceClient::SendFollowRequest(
+    const std::string &username,
+    const std::string &to_follow) {
+
   grpc::ClientContext context;
 
   chirp::FollowRequest request;
@@ -74,11 +79,13 @@ bool ServiceClient::SendFollowRequest(const std::string &username, const std::st
 
   grpc::Status status = stub_->follow(&context, request, &reply);
 
-  return status.ok();
+  return GrpcStatusToReturnCodes(status);
 }
 
-bool ServiceClient::SendReadRequest(const uint64_t &chirp_id,
-                                    std::vector<struct ServiceClient::Chirp> * const chirps) {
+ServiceClient::ReturnCodes ServiceClient::SendReadRequest(
+    const uint64_t &chirp_id,
+    std::vector<struct ServiceClient::Chirp> * const chirps) {
+
   grpc::ClientContext context;
 
   chirp::ReadRequest request;
@@ -97,11 +104,13 @@ bool ServiceClient::SendReadRequest(const uint64_t &chirp_id,
     }
   }
 
-  return status.ok();
+  return GrpcStatusToReturnCodes(status);
 }
 
-bool ServiceClient::SendMonitorRequest(const std::string &username,
-                                       std::vector<ServiceClient::Chirp> * const chirps) {
+ServiceClient::ReturnCodes ServiceClient::SendMonitorRequest(
+    const std::string &username,
+    std::vector<ServiceClient::Chirp> * const chirps) {
+
   grpc::ClientContext context;
 
   chirp::MonitorRequest request;
@@ -122,5 +131,39 @@ bool ServiceClient::SendMonitorRequest(const std::string &username,
 
   grpc::Status status = reader->Finish();
 
-  return status.ok();
+  return GrpcStatusToReturnCodes(status);
+}
+
+ServiceClient::ReturnCodes ServiceClient::GrpcStatusToReturnCodes(const grpc::Status &status) {
+  if (status.ok()) {
+    return OK;
+  } else if (status.error_code() == grpc::INVALID_ARGUMENT) {
+    return INVALID_ARGUMENT;
+  } else if (status.error_code() == grpc::NOT_FOUND) {
+    if (status.error_message() == "user") {
+      return USER_NOT_FOUND;
+    } else if (status.error_message() == "followee") {
+      return FOLLOWEE_NOT_FOUND;
+    } else if (status.error_message() == "chirp id") {
+      return CHIRP_ID_NOT_FOUND;
+    } else if (status.error_message() == "reply id") {
+      return REPLY_ID_NOT_FOUND;
+    } else {
+      return UNKOWN_ERROR;
+    }
+  } else if (status.error_code() == grpc::ALREADY_EXISTS) {
+    if (status.error_message() == "user") {
+      return USER_EXISTS;
+    } else {
+      return UNKOWN_ERROR;
+    }
+  } else if (status.error_code() == grpc::PERMISSION_DENIED) {
+    return PERMISSION_DENIED;
+  } else if (status.error_code() == grpc::INTERNAL) {
+    return INTENRAL_BACKEND_ERROR;
+  } else if (status.error_code() == grpc::UNAVAILABLE) {
+    return SERVICE_LAYER_UNAVAILABLE;
+  } else {
+    return UNKOWN_ERROR;
+  }
 }

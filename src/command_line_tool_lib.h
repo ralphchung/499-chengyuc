@@ -10,34 +10,34 @@
 namespace command_tool {
 // This executes register operation through grpc using the API in `service_client_lib`
 // the `username` cannot be an empty string
-// returns 0 if succeed
-// returns 1 otherwise
-int Register(const std::string &username);
+// returns OK if succeed
+// returns other error codes otherwise
+ServiceClient::ReturnCodes Register(const std::string &username);
 
 // This executes post a chirp operation through grpc using the API in `service_client_lib`
 // the `username` cannot be an empty string
 // if the `parent_id` is not 0, this chirp is replying to another chirp
-// returns 0 if succeed
-// returns 1 otherwise
-int Chirp(const std::string &username, const std::string &text, const uint64_t &parent_id = 0);
+// returns OK if succeed
+// returns other error codes otherwise
+ServiceClient::ReturnCodes Chirp(const std::string &username, const std::string &text, const uint64_t &parent_id = 0);
 
 // This executes follow operation through grpc using the API in `service_client_lib`
 // the `username` and `to_follow` cannot be empty strings
-// returns 0 if succeed
-// returns 1 otherwise
-int Follow(const std::string &username, const std::string &to_follow);
+// returns OK if succeed
+// returns other error codes otherwise
+ServiceClient::ReturnCodes Follow(const std::string &username, const std::string &to_follow);
 
 // This executes read operation through grpc using the API in `service_client_lib`
-// returns 0 if succeed
-// returns 1 otherwise
-int Read(const uint64_t &chirp_id);
+// returns OK if succeed
+// returns other error codes otherwise
+ServiceClient::ReturnCodes Read(const uint64_t &chirp_id);
 
 // This executes monitor operation through grpc using the API in `service_client_lib`
 // the `username` cannot be an empty string
 // This function should never return except users press Ctrl+C in the console
-// returns 0 if succeed
-// returns 1 otherwise
-int Monitor(const std::string &username);
+// returns OK if succeed
+// returns other error codes otherwise
+ServiceClient::ReturnCodes Monitor(const std::string &username);
 
 // This is a helper function that helps print a single chirp
 // used in `Chirp()`, `Read()`, and `PrintChirps()`
