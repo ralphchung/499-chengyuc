@@ -35,20 +35,21 @@ TEST_F(CommandLineTest, RegisterTest) {
   std::string output;
 
   // Register one user
-  int ret = command_tool::Register(username);
+  // ServiceClient::ReturnCodes
+  auto ret = command_tool::Register(username);
   // This should be successful
-  EXPECT_EQ(0, ret);
+  EXPECT_EQ(ServiceClient::OK, ret);
   // check whether the output message is correct
-  std::string expected_success_output = std::string("Registered username: ") + username + std::string(" successfully\n");
+  std::string expected_success_output = std::string("Registered username: ") + username + std::string(": ") + command_tool::service_client.ErrorMsgs[ServiceClient::OK] + std::string("\n");
   EXPECT_EQ(expected_success_output, buffer.str());
   // clean the `buffer
   buffer.str(std::string());
 
   // Register the same user again
   ret = command_tool::Register(username);
-  EXPECT_NE(0, ret);
+  EXPECT_EQ(ServiceClient::USER_EXISTS, ret);
   // check whether the output message is correct
-  std::string expected_fail_output = std::string("Registered username: ") + username + std::string(" unsuccessfully\n");
+  std::string expected_fail_output = std::string("Registered username: ") + username + std::string(": ") + command_tool::service_client.ErrorMsgs[ServiceClient::USER_EXISTS] + std::string("\n");
   EXPECT_EQ(expected_fail_output, buffer.str());
   // clean the `buffer
   buffer.str(std::string());
@@ -70,11 +71,12 @@ TEST_F(CommandLineTest, ChirpTest) {
   buffer.str(std::string());
 
   // Post a chirp from a non-existed user
-  int ret = command_tool::Chirp(std::string("non-existed"), std::string("text"));
+  // ServiceClient::ReturnCodes
+  auto ret = command_tool::Chirp(std::string("non-existed"), std::string("text"));
   // This should fail
-  EXPECT_NE(0, ret);
+  EXPECT_EQ(ServiceClient::USER_NOT_FOUND, ret);
   // check whether the output message is correct
-  std::string expected_fail_output("Posted a chirp unsuccessfully\n");
+  std::string expected_fail_output = std::string("Posted a chirp as non-existed: ") + command_tool::service_client.ErrorMsgs[ServiceClient::USER_NOT_FOUND] + std::string("\n");
   EXPECT_EQ(expected_fail_output, buffer.str());
   // clean the `buffer
   buffer.str(std::string());
@@ -82,9 +84,9 @@ TEST_F(CommandLineTest, ChirpTest) {
   // Post a chirp
   ret = command_tool::Chirp(username, std::string("text"));
   // This should be successful
-  EXPECT_EQ(0, ret);
+  EXPECT_EQ(ServiceClient::OK, ret);
   // check whether the output message is correct
-  std::regex expected_single_output(std::string("Posted a chirp successfully\n\nID: [0-9]*\n@") + username + " \u00B7 .*\ntext\n");
+  std::regex expected_single_output(std::string("Posted a chirp as ") + username + std::string(": ") + command_tool::service_client.ErrorMsgs[ServiceClient::OK] + std::string("\n\nID: [0-9]*\n@") + username + " \u00B7 .*\ntext\n");
   EXPECT_TRUE(std::regex_match(buffer.str(), expected_single_output));
   // record its chirp id for later use
   uint64_t chirp_id = GetChirpIdFromStr(buffer.str());
@@ -94,18 +96,19 @@ TEST_F(CommandLineTest, ChirpTest) {
   // Reply a non-existed chirp
   ret = command_tool::Chirp(username, std::string("text"), UINT_MAX);
   // This should fail
-  EXPECT_NE(0, ret);
+  EXPECT_EQ(ServiceClient::REPLY_ID_NOT_FOUND, ret);
   // check whether the output message is correct
-  EXPECT_EQ(expected_fail_output, buffer.str());
+  std::string expected_fail_reply_output = std::string("Posted a chirp as ") + username + std::string(": ") + command_tool::service_client.ErrorMsgs[ServiceClient::REPLY_ID_NOT_FOUND] + std::string("\n");
+  EXPECT_EQ(expected_fail_reply_output, buffer.str());
   // clean the `buffer
   buffer.str(std::string());
 
   // Reply a chirp
   ret = command_tool::Chirp(username, std::string("text"), chirp_id);
   // This should be successful
-  EXPECT_NE(1, ret);
+  EXPECT_EQ(ServiceClient::OK, ret);
   // check whether the output message is correct
-  std::regex expected_reply_output(std::string("Posted a chirp successfully\n\nID: [0-9]*\n@") + username + " \u00B7 .*\nReply: " + std::to_string(chirp_id) + "\ntext\n");
+  std::regex expected_reply_output(std::string("Posted a chirp as ") + username + std::string(": ") + command_tool::service_client.ErrorMsgs[ServiceClient::OK] + std::string("\n\nID: [0-9]*\n@") + username + " \u00B7 .*\nReply: " + std::to_string(chirp_id) + "\ntext\n");
   EXPECT_TRUE(std::regex_match(buffer.str(), expected_reply_output));
   // clean the `buffer
   buffer.str(std::string());
@@ -128,11 +131,12 @@ TEST_F(CommandLineTest, FollowTest) {
 
   // follow a non-existed username
   std::string non_existed("non-existed");
-  int ret = command_tool::Follow(username, non_existed);
+  // ServiceClient::ReturnCodes
+  auto ret = command_tool::Follow(username, non_existed);
   // This should fail
-  EXPECT_NE(0, ret);
+  EXPECT_EQ(ServiceClient::FOLLOWEE_NOT_FOUND, ret);
   // check whether the output message is correct
-  std::string expected_fail_output(username + " followed " + non_existed + " unsuccessfully\n");
+  std::string expected_fail_output = std::string("Followed ") + non_existed + std::string(" as ") + username + std::string(": ") + command_tool::service_client.ErrorMsgs[ServiceClient::FOLLOWEE_NOT_FOUND] + std::string("\n");
   EXPECT_EQ(expected_fail_output, buffer.str());
   // clean the `buffer
   buffer.str(std::string());
@@ -140,9 +144,9 @@ TEST_F(CommandLineTest, FollowTest) {
   // follow itself
   ret = command_tool::Follow(username, username);
   // This should be successful
-  EXPECT_EQ(0, ret);
+  EXPECT_EQ(ServiceClient::OK, ret);
   // check whether the output message is correct
-  std::string expected_output(username + " followed " + username + " successfully\n");
+  std::string expected_output = std::string("Followed ") + username + std::string(" as ") + username + std::string(": ") + command_tool::service_client.ErrorMsgs[ServiceClient::OK] + std::string("\n");
   EXPECT_EQ(expected_output, buffer.str());
   // clean the `buffer`
   buffer.str(std::string());
@@ -179,12 +183,13 @@ TEST_F(CommandLineTest, ReadTest) {
   buffer.str(std::string());
 
   // Read the top-level chirp
-  int ret = command_tool::Read(chirp_id_top);
+  // ServiceClient::ReturnCodes
+  auto ret = command_tool::Read(chirp_id_top);
   // This should be successful
-  EXPECT_EQ(0, ret);
+  EXPECT_EQ(ServiceClient::OK, ret);
   // check whether the output chirps are correct
   std::regex expected_output(
-      std::string("Read a chirp successfully\n") +
+      std::string("Read a chirp with id [0-9]*: ") + command_tool::service_client.ErrorMsgs[ServiceClient::OK] + "\n" +
                   "\n" +
                   "(-*)\n" +
                   "ID: [0-9]*\n" +
@@ -212,7 +217,6 @@ TEST_F(CommandLineTest, ReadTest) {
                   ".text\n" +
                   "(-*)\n");
   EXPECT_TRUE(std::regex_match(buffer.str(), expected_output)) << buffer.str() << std::endl;
-
 
   // restore the standard output
   std::cout.rdbuf(old);

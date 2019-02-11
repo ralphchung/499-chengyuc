@@ -32,7 +32,7 @@ class ServiceTestDataStructure : public ::testing::Test {
     for(size_t i = 0; i < kNumOfUsersTotal; ++i) {
       user_list_.push_back(std::string("user") + std::to_string(i));
       if (i < kNumOfUsersPreset) {
-        bool ok = service_data_structure_.UserRegister(user_list_[i]);
+        service_data_structure_.UserRegister(user_list_[i]);
       }
     }
   }
@@ -48,16 +48,18 @@ class ServiceTestDataStructure : public ::testing::Test {
 TEST_F(ServiceTestDataStructure, UserRegisterAndLoginTest) {
   // Try to register existed usernames which already done in the `SetUp()`
   for(size_t i = 0; i < kNumOfUsersPreset; ++i) {
-    bool ok = service_data_structure_.UserRegister(user_list_[i]);
+    // ServiceDataStructure::ReturnCodes
+    auto ret = service_data_structure_.UserRegister(user_list_[i]);
     // This should fail since the username specified has already been registered in the `SetUp` process above
-    EXPECT_FALSE(ok);
+    EXPECT_EQ(ServiceDataStructure::USER_EXISTS, ret);
   }
 
   // Try to register non-existed usernames
   for(size_t i = kNumOfUsersPreset; i < kNumOfUsersTotal; ++i) {
-    bool ok = service_data_structure_.UserRegister(user_list_[i]);
+    // ServiceDataStructure::ReturnCodes
+    auto ret = service_data_structure_.UserRegister(user_list_[i]);
     // This should succeed since the username specified is not registered
-    EXPECT_TRUE(ok);
+    EXPECT_EQ(ServiceDataStructure::OK, ret);
   }
 
   // Try to login to those usernames that have been registered
@@ -121,9 +123,10 @@ TEST_F(ServiceTestDataStructure, PostEditAndDeleteTest) {
     // Test Posting
     uint64_t parent_id = 0;
     for(size_t j = 0; j < kTestCase; ++j) {
-      uint64_t chirp_id = session->PostChirp(chirps_content[j], parent_id);
+      uint64_t chirp_id;
+      auto ret = session->PostChirp(chirps_content[j], &chirp_id, parent_id);
       // Posting should be successful
-      ASSERT_NE(0, chirp_id);
+      ASSERT_EQ(ServiceDataStructure::OK, ret);
       parent_id = chirp_id;
 
       // collect the chirp ids created
@@ -136,9 +139,10 @@ TEST_F(ServiceTestDataStructure, PostEditAndDeleteTest) {
     uint64_t last_id = 0;
     for(const auto& id : session->SessionGetUserChirpList()) {
       struct ServiceDataStructure::Chirp chirp;
-      bool ok = service_data_structure_.ReadChirp(id, &chirp);
+      // ServiceDataStructure::ReturnCodes
+      auto ret = service_data_structure_.ReadChirp(id, &chirp);
       // Reading should be successful
-      ASSERT_TRUE(ok);
+      ASSERT_EQ(ServiceDataStructure::OK, ret);
       EXPECT_EQ(last_id, chirp.parent_id);
       last_id = chirp.id;
 
@@ -151,18 +155,20 @@ TEST_F(ServiceTestDataStructure, PostEditAndDeleteTest) {
     // Test Editing
     chirps_content_from_backend.clear();
     for(size_t j = 0; j < chirp_ids.size(); ++j) {
-      auto ok = session->EditChirp(chirp_ids[j], chirps_content_after_edit[j]);
+      // ServiceDataStructure::ReturnCodes
+      auto ret = session->EditChirp(chirp_ids[j], chirps_content_after_edit[j]);
       // Editing should be successful
-      ASSERT_TRUE(ok);
+      ASSERT_EQ(ServiceDataStructure::OK, ret);
     }
 
     // Read from backend
     // to see if the results are identical
     for(auto& id : session->SessionGetUserChirpList()) {
       struct ServiceDataStructure::Chirp chirp;
-      bool ok = service_data_structure_.ReadChirp(id, &chirp);
+      // ServiceDataStructure::ReturnCodes
+      auto ret = service_data_structure_.ReadChirp(id, &chirp);
       // Reading should be successful
-      ASSERT_TRUE(ok);
+      ASSERT_EQ(ServiceDataStructure::OK, ret);
 
       // colect the texts posted
       chirps_content_from_backend.push_back(chirp.text);
@@ -173,21 +179,23 @@ TEST_F(ServiceTestDataStructure, PostEditAndDeleteTest) {
     // Test Deleting
     chirps_content_from_backend.clear();
     for(size_t j = 0; j < kHalfTestCase; ++j) {
-      bool ok = session->DeleteChirp(chirp_ids[j]);
+      // ServiceDataStructure::ReturnCodes
+      auto ret = session->DeleteChirp(chirp_ids[j]);
       // Deleting should be successful
-      EXPECT_TRUE(ok);
-      ok = session->DeleteChirp(chirp_ids[j]);
+      EXPECT_EQ(ServiceDataStructure::OK, ret);
+      ret = session->DeleteChirp(chirp_ids[j]);
       // Deleting should be unsuccessful since this chirp is already deleted
-      EXPECT_FALSE(ok);
+      EXPECT_EQ(ServiceDataStructure::CHIRP_ID_NOT_FOUND, ret);
     }
 
     // Read from backend
     // to see if the results are identical
     for(auto& id : session->SessionGetUserChirpList()) {
       struct ServiceDataStructure::Chirp chirp;
-      bool ok = service_data_structure_.ReadChirp(id, &chirp);
+      // ServiceDataStructure::ReturnCodes
+      auto ret = service_data_structure_.ReadChirp(id, &chirp);
       // Reading should be successful
-      ASSERT_TRUE(ok);
+      ASSERT_EQ(ServiceDataStructure::OK, ret);
 
       // colect the texts posted
       chirps_content_from_backend.push_back(chirp.text);
@@ -205,12 +213,13 @@ TEST_F(ServiceTestDataStructure, FollowAndMonitorTest) {
     auto session = service_data_structure_.UserLogin(user_list_[i]);
     // Login should be successful
     EXPECT_NE(nullptr, session);
-    bool ok = session->Follow(user_list_[(i + 1) % kNumOfUsersPreset]);
+    // ServiceDataStructure::ReturnCodes
+    auto ret = session->Follow(user_list_[(i + 1) % kNumOfUsersPreset]);
     // Following should be successful
-    EXPECT_TRUE(ok);
-    ok = session->Follow("non-existed");
+    EXPECT_EQ(ServiceDataStructure::OK, ret);
+    ret = session->Follow("non-existed");
     // Should not follow a non-existed user
-    EXPECT_FALSE(ok);
+    EXPECT_EQ(ServiceDataStructure::FOLLOWEE_NOT_FOUND, ret);
   }
 
   // Each user monitors their following users
@@ -222,9 +231,9 @@ TEST_F(ServiceTestDataStructure, FollowAndMonitorTest) {
 
     // Post some dont-care chirps from the followed user
     for(size_t j = 0; j < 5; ++j) {
-      uint64_t chirp_id = session_user_followed->PostChirp(kShortText);
+      auto ret = session_user_followed->PostChirp(kShortText, nullptr);
       // Posting should be successful
-      EXPECT_NE(0, chirp_id);
+      EXPECT_EQ(ServiceDataStructure::OK, ret);
     }
 
     // Timestamp the current time and back it up
@@ -238,9 +247,10 @@ TEST_F(ServiceTestDataStructure, FollowAndMonitorTest) {
     // Collect the chirp ids after the above timestamp
     std::set<uint64_t> chirp_collector;
     for(size_t j = 0; j < 5; ++j) {
-      auto chirp_id = session_user_followed->PostChirp(kShortText);
+      uint64_t chirp_id;
+      auto ret = session_user_followed->PostChirp(kShortText, &chirp_id);
       // Posting should be successful
-      EXPECT_NE(0, chirp_id);
+      EXPECT_EQ(ServiceDataStructure::OK, ret);
       chirp_collector.insert(chirp_id);
     }
 
@@ -268,7 +278,7 @@ class ServiceTestServer : public ::testing::Test {
       user_list_.push_back(std::string("User") + std::to_string(i));
 
       if (i < kNumOfUsersPreset) {
-        bool ok = service_client_.SendRegisterUserRequest(user_list_[i]);
+        service_client_.SendRegisterUserRequest(user_list_[i]);
       }
     }
   }
@@ -281,23 +291,26 @@ class ServiceTestServer : public ::testing::Test {
 TEST_F(ServiceTestServer, RegisterUser) {
   // Try to register existed usernames
   for(size_t i = 0; i < kNumOfUsersPreset; ++i) {
-    bool ok = service_client_.SendRegisterUserRequest(user_list_[i]);
+    // ServiceClient::ReturnCodes
+    auto ret = service_client_.SendRegisterUserRequest(user_list_[i]);
     // This should fail since the username specified has already been registered in the `SetUp` process above
-    EXPECT_FALSE(ok) << "This should fail since the username specified has been registered.";
+    EXPECT_EQ(ServiceClient::USER_EXISTS, ret) << "This should fail since the username specified has been registered.";
   }
 
   // Try to register non-existed usernames
   for(size_t i = kNumOfUsersPreset; i < kNumOfUsersTotal; ++i) {
-    bool ok = service_client_.SendRegisterUserRequest(user_list_[i]);
+    // ServiceClient::ReturnCodes
+    auto ret = service_client_.SendRegisterUserRequest(user_list_[i]);
     // This should succeed since the username specified is not registered
-    EXPECT_TRUE(ok) << "This registration should succeed.";
+    EXPECT_EQ(ServiceClient::OK, ret) << "This registration should succeed.";
   }
 
   // Try to register all usernames again
   for(size_t i = 0; i < kNumOfUsersTotal; ++i) {
-    bool ok = service_client_.SendRegisterUserRequest(user_list_[i]);
+    // ServiceClient::ReturnCodes
+    auto ret = service_client_.SendRegisterUserRequest(user_list_[i]);
     // This should fail since all these usernames are already registered
-    EXPECT_FALSE(ok) << "This should fail since the username specified has been registered.";
+    EXPECT_EQ(ServiceClient::USER_EXISTS, ret) << "This should fail since the username specified has been registered.";
   }
 }
 
@@ -307,7 +320,9 @@ TEST_F(ServiceTestServer, Chirp) {
   uint64_t last_id = 0;
   for (size_t i = 0; i < kNumOfUsersTotal; ++i) {
     struct ServiceClient::Chirp chirp;
-    bool ok = service_client_.SendChirpRequest(user_list_[i], kShortText, last_id, &chirp);
+    // ServiceClient::ReturnCodes
+    auto ret = service_client_.SendChirpRequest(user_list_[i], kShortText, last_id, &chirp);
+    EXPECT_EQ(ServiceClient::OK, ret);
     // The three lines below check if the data in a chirp data structure corresponds to
     // the data provided above
     EXPECT_EQ(user_list_[i], chirp.username);
@@ -321,12 +336,13 @@ TEST_F(ServiceTestServer, Chirp) {
 TEST_F(ServiceTestServer, Follow) {
   // Every user follows its next user
   for(size_t i = 0; i < kNumOfUsersTotal; ++i) {
-    bool ok = service_client_.SendFollowRequest(user_list_[i], user_list_[(i + 1) % kNumOfUsersTotal]);
+    // ServiceClient::ReturnCodes
+    auto ret = service_client_.SendFollowRequest(user_list_[i], user_list_[(i + 1) % kNumOfUsersTotal]);
     // This should be successful
-    EXPECT_TRUE(ok);
+    EXPECT_EQ(ServiceClient::OK, ret);
     // This should be unsuccessful since it tries to follow a non-existed user
-    ok = service_client_.SendFollowRequest(user_list_[i], "non-existed");
-    EXPECT_FALSE(ok);
+    ret = service_client_.SendFollowRequest(user_list_[i], "non-existed");
+    EXPECT_EQ(ServiceClient::FOLLOWEE_NOT_FOUND, ret);
   }
 }
 
@@ -347,34 +363,35 @@ TEST_F(ServiceTestServer, Read) {
     //     - #04
 
     // Layer 1
-    bool ok = service_client_.SendChirpRequest(user_list_[i], kShortText, 0, &chirp);
+    // ServiceClient::ReturnCodes
+    auto ret = service_client_.SendChirpRequest(user_list_[i], kShortText, 0, &chirp);
     // Posting a chirp should be successful
-    EXPECT_TRUE(ok);
+    EXPECT_EQ(ServiceClient::OK, ret);
     corrected_chirps.push_back(chirp.id);
 
     // Layer 2
     for (size_t j = 0; j < 3; ++j) {
-      ok = service_client_.SendChirpRequest(user_list_[i], kShortText, corrected_chirps[0], &chirp);
+      ret = service_client_.SendChirpRequest(user_list_[i], kShortText, corrected_chirps[0], &chirp);
       // Posting a chirp should be successful
-      EXPECT_TRUE(ok);
+      EXPECT_EQ(ServiceClient::OK, ret);
       corrected_chirps.push_back(chirp.id);
     }
 
     // Layer 3
     std::vector<uint64_t> tmp;
     for(size_t j = 0; j < 3; ++j) {
-      ok = service_client_.SendChirpRequest(user_list_[i], kShortText, corrected_chirps[1], &chirp);
+      ret = service_client_.SendChirpRequest(user_list_[i], kShortText, corrected_chirps[1], &chirp);
       // Posting a chirp should be successful
-      EXPECT_TRUE(ok);
+      EXPECT_EQ(ServiceClient::OK, ret);
       tmp.push_back(chirp.id);
     }
     corrected_chirps.insert(corrected_chirps.begin() + 2, tmp.begin(), tmp.end());
 
     // Prepare to read
     std::vector<struct ServiceClient::Chirp> reply;
-    ok = service_client_.SendReadRequest(corrected_chirps[0], &reply);
+    ret = service_client_.SendReadRequest(corrected_chirps[0], &reply);
     // Reading should be successful
-    EXPECT_TRUE(ok);
+    EXPECT_EQ(ServiceClient::OK, ret);
     // Check if the ids from reading and the ids in the container are identical
     for(size_t j = 0; j < corrected_chirps.size(); ++j) {
       EXPECT_EQ(user_list_[i], reply[j].username);
@@ -401,9 +418,10 @@ TEST_F(ServiceTestServer, Monitor) {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
       ServiceClient::Chirp chirp;
-      bool ok = service_client_.SendChirpRequest(user_list_[i], kShortText, 0, &chirp);
+      // ServiceClient::ReturnCodes
+      auto ret = service_client_.SendChirpRequest(user_list_[i], kShortText, 0, &chirp);
       // Posting chirps should be successful
-      EXPECT_TRUE(ok);
+      EXPECT_EQ(ServiceClient::OK, ret);
       chirpids.push_back(chirp.id);
     }
   });

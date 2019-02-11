@@ -11,92 +11,104 @@
 
 #include "service_client_lib.h"
 
-const char *success_text[2] = {" unsuccessfully", " successfully"};
-
 ServiceClient command_tool::service_client;
 
 std::string command_tool::usage;
 
-// TODO: add more detailed error messages
-int command_tool::Register(const std::string &username) {
-  if (username.empty()) {
-    std::cout << "Empty username\n";
-    std::cout << command_tool::usage;
-    return 1;
-  }
-  bool ok = service_client.SendRegisterUserRequest(username);
+ServiceClient::ReturnCodes command_tool::Register(const std::string &username) {
+  std::cout << "Registered username: " << username << ": ";
 
-  std::cout << "Registered username: " << username << success_text[ok] << '\n';
-  return (!ok);
+  if (username.empty()) {
+    std::cout << "Empty username.\n";
+    std::cout << command_tool::usage;
+    return ServiceClient::INVALID_ARGUMENT;
+  }
+
+  // ServiceClient::ReturnCodes
+  auto ret = service_client.SendRegisterUserRequest(username);
+  std::cout << service_client.ErrorMsgs[ret] << "\n";
+
+  return ret;
 }
 
-// TODO: add more detailed error messages
-int command_tool::Chirp(const std::string &username, const std::string &text, const uint64_t &parent_id) {
+ServiceClient::ReturnCodes command_tool::Chirp(const std::string &username,
+                                               const std::string &text,
+                                               const uint64_t &parent_id) {
+
+  std::cout << "Posted a chirp as " << username << ": ";
+
   if (username.empty()) {
-    std::cout << "Empty username\n";
+    std::cout << "Empty username.\n";
     std::cout << command_tool::usage;
-    return 1;
+    return ServiceClient::INVALID_ARGUMENT;
   }
 
   if (text.empty()) {
-    std::cout << "Empty text\n";
+    std::cout << "Empty text.\n";
     std::cout << command_tool::usage;
-    return 1;
+    return ServiceClient::INVALID_ARGUMENT;
   }
 
   struct ServiceClient::Chirp chirp;
-  bool ok = service_client.SendChirpRequest(username, text, parent_id, &chirp);
-
-  std::cout << "Posted a chirp" << success_text[ok] << "\n";
-
-  if (ok) {
+  // ServiceClient::ReturnCodes
+  auto ret = service_client.SendChirpRequest(username, text, parent_id, &chirp);
+  std::cout << service_client.ErrorMsgs[ret] << "\n";
+  if (ret == ServiceClient::OK) {
     std::cout << '\n';
     command_tool::PrintSingleChirp(chirp, 0);
   }
 
-  return (!ok);
+  return ret;
 }
 
-int command_tool::Follow(const std::string &username, const std::string &to_follow) {
+ServiceClient::ReturnCodes command_tool::Follow(const std::string &username,
+                                                const std::string &to_follow) {
+
+  std::cout << "Followed " << to_follow << " as " << username << ": ";
   if (username.empty()) {
-    std::cout << "Empty username\n";
+    std::cout << "Empty username.\n";
     std::cout << command_tool::usage;
-    return 1;
+    return ServiceClient::INVALID_ARGUMENT;
   }
 
   if (to_follow.empty()) {
-    std::cout << "Empty followee username\n";
+    std::cout << "Empty followee username.\n";
     std::cout << command_tool::usage;
-    return 1;
+    return ServiceClient::INVALID_ARGUMENT;
   }
 
-  bool ok = service_client.SendFollowRequest(username, to_follow);
+  // ServiceClient::ReturnCodes
+  auto ret = service_client.SendFollowRequest(username, to_follow);
+  std::cout << service_client.ErrorMsgs[ret] << "\n";
 
-  std::cout << username << " followed " << to_follow << success_text[ok] << "\n";
-
-  return (!ok);
+  return ret;
 }
 
-int command_tool::Read(const uint64_t &chirp_id) {
+ServiceClient::ReturnCodes command_tool::Read(const uint64_t &chirp_id) {
+  std::cout << "Read a chirp with id " << chirp_id << ": ";
+
   std::vector<struct ServiceClient::Chirp> chirps;
-  bool ok = service_client.SendReadRequest(chirp_id, &chirps);
+  // ServiceClient::ReturnCodes
+  auto ret = service_client.SendReadRequest(chirp_id, &chirps);
+  std::cout << service_client.ErrorMsgs[ret] << "\n";
 
-  std::cout << "Read a chirp" << success_text[ok] << "\n";
-
-  if (ok) {
+  if (ret == ServiceClient::OK) {
     std::cout << "\n";
     PrintChirps(chirps);
   }
 
-  return (!ok);
+  return ret;
 }
 
-int command_tool::Monitor(const std::string &username) {
+ServiceClient::ReturnCodes command_tool::Monitor(const std::string &username) {
+  std::cout << "Monitored as " << username << ": ";
   if (username.empty()) {
-    std::cout << "Empty username\n";
+    std::cout << "Empty username.\n";
     std::cout << command_tool::usage;
-    return 1;
+    return ServiceClient::INVALID_ARGUMENT;
   }
+
+  std::cout << "\n";
 
   std::vector<struct ServiceClient::Chirp> chirps;
   bool flag = true;
@@ -117,11 +129,14 @@ int command_tool::Monitor(const std::string &username) {
     }
   });
 
-  bool ok = service_client.SendMonitorRequest(username, &chirps);
+  // ServiceClient::ReturnCodes
+  auto ret = service_client.SendMonitorRequest(username, &chirps);
+  std::cout << service_client.ErrorMsgs[ret] << "\n";
+
   flag = false;
   print_chirps.join();
 
-  return (!ok);
+  return ret;
 }
 
 const char padding_char = '|';
