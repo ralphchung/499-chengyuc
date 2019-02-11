@@ -24,6 +24,21 @@ using UserFollowingList = std::set<std::string>;
 // Further operations should be taken under `class UserSession`.
 class ServiceDataStructure {
  public:
+  // Definition of return codes, showing different error messages
+  enum ReturnCodes : int {
+    OK = 0,
+    INVALID_ARGUMENT,
+    USER_EXISTS,
+    FOLLOWEE_NOT_FOUND,
+    CHIRP_ID_NOT_FOUND,
+    REPLY_ID_NOT_FOUND,
+    PERMISSION_DENIED,
+
+    INTENRAL_BACKEND_ERROR,
+
+    UNKOWN_ERROR = INT_MAX
+  };
+
   struct User {
     // The username of this user
     std::string username;
@@ -62,32 +77,35 @@ class ServiceDataStructure {
   // Since this is a public class, its constructor is private
   // This means it can only be created by `ServiceDataStructure`
   class UserSession {
-  public:
+   public:
     // Follow a specified user
-    // returns true if this operation succeeds
-    // returns false otherwise
-    bool Follow(const std::string &username);
+    // returns OK if this operation succeeds
+    // returns other return codes otherwise
+    ReturnCodes Follow(const std::string &username);
 
     // Unfollow a specifed user
-    // returns true if this operation succeeds
-    // returns false otherwise
-    bool Unfollow(const std::string &username);
+    // returns OK if this operation succeeds
+    // returns other return codes otherwise
+    ReturnCodes Unfollow(const std::string &username);
 
     // Post a chirp
-    // If the `parent_id` is not specified, its default value will be an empty string.
-    // returns the newly posted chirp id if this operation succeeds
-    // returns 0 otherwise
-    uint64_t PostChirp(const std::string &text, const uint64_t &parent_id = 0);
+    // If the `parent_id` is not specified, its default value will be 0.
+    // the newly posted chirp id will be set to `chirp_id` if this operation succeeds
+    // returns OK if this operation succeeds
+    // returns other return codes otherwise
+    ReturnCodes PostChirp(const std::string &text,
+                          uint64_t * const chirp_id,
+                          const uint64_t &parent_id = 0);
 
     // Edit a chirp
-    // returns true if this operation succeeds
-    // returns false otherwise
-    bool EditChirp(const uint64_t &id, const std::string &text);
+    // returns OK if this operation succeeds
+    // returns other return codes otherwise
+    ReturnCodes EditChirp(const uint64_t &id, const std::string &text);
 
     // Delete a chirp
-    // returns true if this operation succeeds
-    // returns false otherwise
-    bool DeleteChirp(const uint64_t &id);
+    // returns OK if this operation succeeds
+    // returns other return codes otherwise
+    ReturnCodes DeleteChirp(const uint64_t &id);
 
     // Monitor from a specified time to now
     // returns a set containing chirp ids
@@ -105,7 +123,7 @@ class ServiceDataStructure {
     // This returns the user's chirp list
     const UserChirpList SessionGetUserChirpList();
 
-  private:
+   private:
     // Private constructor
     // This initializes the member data `user_`
     UserSession(const std::string &username);
@@ -119,9 +137,9 @@ class ServiceDataStructure {
   };
 
   // User register operation
-  // returns true if this operation succeeds
-  // return false otherwise
-  bool UserRegister(const std::string &username);
+  // returns OK if this operation succeeds
+  // returns other return codes otherwise
+  ReturnCodes UserRegister(const std::string &username);
 
   // User login operation
   // returns a pointer to a newly created `UserSession`
@@ -129,9 +147,9 @@ class ServiceDataStructure {
   std::unique_ptr<UserSession> UserLogin(const std::string &username);
 
   // Chirp read operation
-  // returns true if this operation succeeds
-  // returns false otherwise
-  bool ReadChirp(const uint64_t &id, struct Chirp * const chirp);
+  // returns OK if this operation succeeds
+  // returns other return codes otherwise
+  ReturnCodes ReadChirp(const uint64_t &id, struct Chirp * const chirp);
 };
 
 namespace chirp_connect_backend {
@@ -232,8 +250,16 @@ inline const UserChirpList ServiceDataStructure::UserSession::SessionGetUserChir
   return ret;
 }
 
-inline bool ServiceDataStructure::ReadChirp(const uint64_t &id, struct ServiceDataStructure::Chirp * const chirp) {
-  return chirp_connect_backend::GetChirp(id, chirp);
+inline ServiceDataStructure::ReturnCodes ServiceDataStructure::ReadChirp(
+    const uint64_t &id,
+    struct ServiceDataStructure::Chirp * const chirp) {
+
+  bool ok = chirp_connect_backend::GetChirp(id, chirp);
+  if (ok) {
+    return ServiceDataStructure::OK;
+  } else {
+    return ServiceDataStructure::CHIRP_ID_NOT_FOUND;
+  }
 }
 
 #endif /* CHIRP_SRC_SERVICE_DATA_STRUCTURE_H_ */

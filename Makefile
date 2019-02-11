@@ -79,8 +79,21 @@ service_test_debug: service_data_structure_debug service_client_lib $(TEST_PATH)
 	g++ -std=c++11 `pkg-config --cflags protobuf grpc` -I $(SRC_PATH) -Igtest/include  -c -o $(TEST_PATH)/service_test.o $(TEST_PATH)/service_test.cc
 	g++ $(SRC_PATH)/key_value.pb.o $(SRC_PATH)/key_value.grpc.pb.o $(SRC_PATH)/service.pb.o $(SRC_PATH)/service.grpc.pb.o $(SRC_PATH)/backend_client_lib.o $(SRC_PATH)/service_data_structure.o $(SRC_PATH)/service_client_lib.o $(TEST_PATH)/service_test.o -L/usr/local/lib -Lgtest/lib -lgtest -lpthread -lglog `pkg-config --libs protobuf grpc++` -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed -ldl -o service_test_debug
 
+command_line_tool_lib: $(SRC_PATH)/command_line_tool_lib.h $(SRC_PATH)/command_line_tool_lib.cc service.pb.cc service.grpc.pb.cc
+	g++ -std=c++11 -I $(SRC_PATH) -c -o $(SRC_PATH)/command_line_tool_lib.o $(SRC_PATH)/command_line_tool_lib.cc
+
+command_line_tool: command_line_tool_lib service_client_lib service.pb.o service.grpc.pb.o
+	g++ -std=c++11 -c -o $(SRC_PATH)/command_line_tool.o $(SRC_PATH)/command_line_tool.cc
+	g++ $(SRC_PATH)/service.pb.o $(SRC_PATH)/service.grpc.pb.o $(SRC_PATH)/command_line_tool_lib.o $(SRC_PATH)/command_line_tool.o $(SRC_PATH)/service_client_lib.o -lgflags `pkg-config --libs protobuf grpc++` -o chirp
+
+command_line_tool_test: $(TEST_PATH)/command_line_tool_test.cc command_line_tool_lib service_client_lib service.pb.o service.grpc.pb.o
+	g++ -std=c++11 `pkg-config --cflags protobuf grpc` -I $(SRC_PATH) -Igtest/include  -c -o $(TEST_PATH)/command_line_tool_test.o $(TEST_PATH)/command_line_tool_test.cc
+	g++ $(SRC_PATH)/service.pb.o $(SRC_PATH)/service.grpc.pb.o $(SRC_PATH)/service_client_lib.o $(SRC_PATH)/command_line_tool_lib.o $(TEST_PATH)/command_line_tool_test.o -L/usr/local/lib -Lgtest/lib -lgtest -lpthread `pkg-config --libs protobuf grpc++` -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed -ldl -o command_line_tool_test
+
 clean: remove_compiled_proto remove_object_files
 	rm -f backend_server
 	rm -f *_backend
 	rm -f backend_*
 	rm -f service_*
+	rm -f command_line_tool*
+	rm -f chirp

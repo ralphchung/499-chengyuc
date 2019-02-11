@@ -24,6 +24,12 @@ $ make
 $ [sudo] make install
 ```
 
+## gflags
+### Installation
+```
+$ [sudo] apt install libgflags-dev
+```
+
 ## gtest
 ### Installation
 ```
@@ -59,6 +65,15 @@ $ ./backend_server
 $ make backend_test
 $ ./backend_test
 ```
+
+## Service layer
+### Server
+```
+$ make service_server
+$ ./service_server
+```
+
+### Unit Test
 #### service_test
 ```
 $ make service_test
@@ -68,4 +83,17 @@ $ ./service_test
 ```
 $ make service_test_debug
 $ ./service_test_debug
+```
+
+## Command-line tool
+### Tool
+```
+$ make command_line_tool
+$ ./chirp
+```
+
+### Unit Test
+```
+$ make command_line_tool_test
+$ ./command_line_tool_test
 ```

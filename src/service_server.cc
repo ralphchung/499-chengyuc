@@ -18,18 +18,13 @@ grpc::Status ServiceImpl::registeruser(
     chirp::RegisterReply *reply) {
 
   if (context == nullptr || request == nullptr) {
-    return grpc::Status(grpc::INVALID_ARGUMENT,
-                        "`ServerContext` or `RegisterRequest` is nullptr.",
-                        "");
+    return grpc::Status(grpc::FAILED_PRECONDITION,
+                        "`ServerContext` or `RegisterRequest` is nullptr.");
   }
 
-  bool ok = service_data_structure_.UserRegister(request->username());
-
-  if (ok) {
-    return grpc::Status::OK;
-  } else {
-    return grpc::Status(grpc::UNKNOWN, "User register failed.");
-  }
+  // ServiceDataStructure::ReturnCodes
+  auto ret = service_data_structure_.UserRegister(request->username());
+  return ReturnCodesToGrpcStatus(ret);
 }
 
 grpc::Status ServiceImpl::chirp(
@@ -38,32 +33,34 @@ grpc::Status ServiceImpl::chirp(
     chirp::ChirpReply *reply) {
 
   if (context == nullptr || request == nullptr || reply == nullptr) {
-    return grpc::Status(grpc::INVALID_ARGUMENT,
-                        "`ServerContext`, `RegisterRequest`, or `reply` is nullptr.",
-                        "");
+    return grpc::Status(
+        grpc::FAILED_PRECONDITION,
+        "`ServerContext`, `RegisterRequest`, or `reply` is nullptr.");
   }
 
-  std::unique_ptr<ServiceDataStructure::UserSession> user_session = service_data_structure_.UserLogin(request->username());
+  // std::unique_ptr<ServiceDataStructure::UserSession>
+  auto user_session = service_data_structure_.UserLogin(request->username());
   if (user_session == nullptr) {
-    return grpc::Status(grpc::NOT_FOUND,
-                        "Failed to login.",
-                        "");
+    return grpc::Status(grpc::NOT_FOUND, "user");
   }
 
-  uint64_t chirp_id = user_session->PostChirp(request->text(), ChirpIdBytesToUint(request->parent_id()));
-  if (chirp_id == 0) {
-    return grpc::Status(grpc::UNKNOWN,
-                        "Failed to create a new chirp.",
-                        "");
+  uint64_t chirp_id;
+  // ServiceDataStructure::ReturnCodes
+  auto ret = user_session->PostChirp(request->text(),
+                                     &chirp_id,
+                                     ChirpIdBytesToUint(request->parent_id()));
+  if (ret != ServiceDataStructure::OK) {
+    return ReturnCodesToGrpcStatus(ret);
   }
 
-  struct ServiceDataStructure::Chirp chirp;
-  chirp::Chirp *ret = new chirp::Chirp();
-  bool ok = service_data_structure_.ReadChirp(chirp_id, &chirp);
-  CHECK(ok) << "The newly created chirp should not fail to be read.";
+  struct ServiceDataStructure::Chirp internal_chirp;
+  chirp::Chirp *grpc_chirp = new chirp::Chirp();
+  // ServiceDataStructure::ReturnCodes
+  ret = service_data_structure_.ReadChirp(chirp_id, &internal_chirp);
+  CHECK(ret == ServiceDataStructure::OK) << "The newly created chirp should not fail to be read.";
 
-  InternalChirpToGrpcChirp(chirp, ret);
-  reply->set_allocated_chirp(ret);
+  InternalChirpToGrpcChirp(internal_chirp, grpc_chirp);
+  reply->set_allocated_chirp(grpc_chirp);
 
   return grpc::Status::OK;
 }
@@ -74,27 +71,19 @@ grpc::Status ServiceImpl::follow(
     chirp::FollowReply *reply) {
 
   if (context == nullptr || request == nullptr) {
-    return grpc::Status(grpc::INVALID_ARGUMENT,
-                        "`ServerContext` or `RegisterRequest` is nullptr.",
-                        "");
+    return grpc::Status(grpc::FAILED_PRECONDITION,
+                        "`ServerContext` or `RegisterRequest` is nullptr.");
   }
 
   auto user_session = service_data_structure_.UserLogin(request->username());
   if (user_session == nullptr) {
-    return grpc::Status(grpc::NOT_FOUND,
-                        "Failed to login.",
-                        "");
+    return grpc::Status(grpc::NOT_FOUND, "user");
   }
 
-  bool ok = user_session->Follow(request->to_follow());
+  // ServiceDataStructure::ReturnCodes
+  auto ret = user_session->Follow(request->to_follow());
 
-  if (ok) {
-    return grpc::Status::OK;
-  } else {
-    return grpc::Status(grpc::UNKNOWN,
-                        "Failed to follow a user.",
-                        "");
-  }
+  return ReturnCodesToGrpcStatus(ret);
 }
 
 grpc::Status ServiceImpl::read(
@@ -103,14 +92,13 @@ grpc::Status ServiceImpl::read(
     chirp::ReadReply *reply) {
 
   if (context == nullptr || request == nullptr || reply == nullptr) {
-    return grpc::Status(grpc::INVALID_ARGUMENT,
-                        "`ServerContext`, `RegisterRequest`, or `reply` is nullptr.",
-                        "");
+    return grpc::Status(grpc::FAILED_PRECONDITION,
+                        "`ServerContext`, `RegisterRequest`, or `reply` is nullptr.");
   }
 
-  DFSScanChirps(reply, ChirpIdBytesToUint(request->chirp_id()));
-
-  return grpc::Status::OK;
+  // ServiceDataStructure::ReturnCodes
+  auto ret = DFSScanChirps(reply, ChirpIdBytesToUint(request->chirp_id()));
+  return ReturnCodesToGrpcStatus(ret);
 }
 
 grpc::Status ServiceImpl::monitor(
@@ -119,13 +107,12 @@ grpc::Status ServiceImpl::monitor(
     grpc::ServerWriter<chirp::MonitorReply> *writer) {
 
   if (context == nullptr || request == nullptr || writer == nullptr) {
-    return grpc::Status(grpc::INVALID_ARGUMENT,
-                        "`ServerContext`, `RegisterRequest`, or `writer` is nullptr.",
-                        "");
+    return grpc::Status(grpc::FAILED_PRECONDITION,
+                        "`ServerContext`, `RegisterRequest`, or `writer` is nullptr.");
   }
 
   const int mseconds_per_wait = 50;
-  const int times_count = 10;
+  const int times_count = INT_MAX;
 
   struct timeval start_time;
   gettimeofday(&start_time, nullptr);
@@ -152,8 +139,10 @@ grpc::Status ServiceImpl::monitor(
     if (chirps_collector.size() > 0) {
       for(const auto &chirp_id : chirps_collector) {
         struct ServiceDataStructure::Chirp internal_chirp;
-        bool ok = service_data_structure_.ReadChirp(chirp_id, &internal_chirp);
-        if (!ok) {
+        // ServiceDataStructure::ReturnCodes
+        auto ret = service_data_structure_.ReadChirp(chirp_id, &internal_chirp);
+        // ignore errors here
+        if (ret != ServiceDataStructure::OK) {
           continue;
         }
 
@@ -196,18 +185,48 @@ void ServiceImpl::InternalChirpToGrpcChirp(
   grpc_chirp->set_allocated_timestamp(timestamp);
 }
 
-void ServiceImpl::DFSScanChirps(chirp::ReadReply * const reply, const uint64_t &chirp_id) {
+ServiceDataStructure::ReturnCodes ServiceImpl::DFSScanChirps(chirp::ReadReply * const reply, const uint64_t &chirp_id) {
   struct ServiceDataStructure::Chirp internal_chirp;
-  bool ok = service_data_structure_.ReadChirp(chirp_id, &internal_chirp);
-  if (!ok) {
-    return;
+  // ServiceDataStructure::ReturnCodes
+  auto ret = service_data_structure_.ReadChirp(chirp_id, &internal_chirp);
+  if (ret != ServiceDataStructure::OK) {
+    return ServiceDataStructure::CHIRP_ID_NOT_FOUND;
   }
 
   chirp::Chirp *grpc_chirp = reply->add_chirps();
   InternalChirpToGrpcChirp(internal_chirp, grpc_chirp);
 
   for(const auto &id : internal_chirp.children_ids) {
-    DFSScanChirps(reply, id);
+    // ServiceDataStructure::ReturnCodes
+    auto ret = DFSScanChirps(reply, id);
+    if (ret != ServiceDataStructure::OK) {
+      return ret;
+    }
+  }
+
+  return ServiceDataStructure::OK;
+}
+
+grpc::Status ServiceImpl::ReturnCodesToGrpcStatus(const ServiceDataStructure::ReturnCodes &ret) {
+  switch (ret) {
+    case ServiceDataStructure::OK:
+      return grpc::Status::OK;
+    case ServiceDataStructure::INVALID_ARGUMENT:
+      return grpc::Status(grpc::INVALID_ARGUMENT, "");
+    case ServiceDataStructure::USER_EXISTS:
+      return grpc::Status(grpc::ALREADY_EXISTS, "user");
+    case ServiceDataStructure::FOLLOWEE_NOT_FOUND:
+      return grpc::Status(grpc::NOT_FOUND, "followee");
+    case ServiceDataStructure::CHIRP_ID_NOT_FOUND:
+      return grpc::Status(grpc::NOT_FOUND, "chirp id");
+    case ServiceDataStructure::REPLY_ID_NOT_FOUND:
+      return grpc::Status(grpc::NOT_FOUND, "reply id");
+    case ServiceDataStructure::PERMISSION_DENIED:
+      return grpc::Status(grpc::PERMISSION_DENIED, "");
+    case ServiceDataStructure::INTENRAL_BACKEND_ERROR:
+      return grpc::Status(grpc::INTERNAL, "backend");
+    default:
+      return grpc::Status(grpc::UNKNOWN, "");
   }
 }
 
