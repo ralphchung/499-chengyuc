@@ -18,6 +18,18 @@ int main(int argc, char **argv) {
 
   command_tool::usage = std::string("Usage: ") + argv[0] + " --register <username> --user <username> --chirp <chirp text> --reply <reply chirp id> --follow <username> --read <chirp id> --monitor\n";
 
+  // Count the number of operations specifies
+  size_t op_cnt = 0;
+  op_cnt += (!FLAGS_register.empty());
+  op_cnt += (!FLAGS_chirp.empty());
+  op_cnt += (!FLAGS_follow.empty());
+  op_cnt += (FLAGS_read > 0);
+  op_cnt += (FLAGS_monitor);
+  if (op_cnt > 1) {
+    std::cout << command_tool::usage;
+    return ServiceClient::INVALID_ARGUMENT;
+  }
+
   if (!FLAGS_register.empty()) {
     return command_tool::Register(FLAGS_register);
   } else if (!FLAGS_chirp.empty()) {
