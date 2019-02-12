@@ -16,7 +16,7 @@
 
 #define DEFAULT_HOST_AND_PORT "0.0.0.0:50000"
 
-KeyValueStoreImpl::KeyValueStoreImpl() : backend_data_() {}
+KeyValueStoreImpl::KeyValueStoreImpl() : backend_data_(), lock_(ATOMIC_FLAG_INIT) {}
 
 grpc::Status KeyValueStoreImpl::put(
     grpc::ServerContext *context,
@@ -29,7 +29,12 @@ grpc::Status KeyValueStoreImpl::put(
                         "");
   }
 
+  // acquire lock
+  while (lock_.test_and_set(std::memory_order_acquire))
+    ; // spin
   bool ok = backend_data_.Put(request->key(), request->value());
+  // release lock
+  lock_.clear(std::memory_order_release);
 
   if (ok) {
     return grpc::Status::OK;
@@ -45,6 +50,9 @@ grpc::Status KeyValueStoreImpl::get(
 
   chirp::GetRequest request;
 
+  // acquire lock
+  while (lock_.test_and_set(std::memory_order_acquire))
+    ; // spin
   while(stream->Read(&request)) {
     chirp::GetReply reply;
     std::string value;
@@ -59,6 +67,8 @@ grpc::Status KeyValueStoreImpl::get(
 
     stream->Write(reply);
   }
+  // release lock
+  lock_.clear(std::memory_order_release);
 
   return grpc::Status::OK;
 }
@@ -74,7 +84,12 @@ grpc::Status KeyValueStoreImpl::deletekey(
                         "");
   }
 
+  // acquire lock
+  while (lock_.test_and_set(std::memory_order_acquire))
+    ; // spin
   bool ok = backend_data_.DeleteKey(request->key());
+  // release lock
+  lock_.clear(std::memory_order_release);
 
   if (ok) {
     return grpc::Status::OK;

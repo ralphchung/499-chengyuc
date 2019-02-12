@@ -1,6 +1,7 @@
 #ifndef CHIRP_SRC_BACKEND_SERVER_H_
 #define CHIRP_SRC_BACKEND_SERVER_H_
 
+#include <atomic>
 #include <map>
 #include <string>
 
@@ -27,6 +28,9 @@ class KeyValueStoreImpl final : public chirp::KeyValueStore::Service {
   grpc::Status deletekey(grpc::ServerContext *context, const chirp::DeleteRequest *request, chirp::DeleteReply *reply) override;
  private:
   BackendDataStructure backend_data_;
+
+  // spinlock
+  std::atomic_flag lock_;
 };
 
 #endif /* CHIRP_SRC_BACKEND_SERVER_H_ */

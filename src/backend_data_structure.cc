@@ -4,7 +4,6 @@ BackendDataStructure::BackendDataStructure() : key_value_map_() {}
 
 BackendDataStructure::~BackendDataStructure() {}
 
-// TODO: Add concurrency support.
 bool BackendDataStructure::Put(const std::string &key,
                                const std::string &value) {
   key_value_map_[key] = value;
