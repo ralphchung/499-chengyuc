@@ -5,6 +5,7 @@
 #include <thread>
 #include <vector>
 
+#include "grpc_client_lib.h"
 #include "service.grpc.pb.h"
 
 namespace {
@@ -13,19 +14,10 @@ const char* kDefaultPort = "50002";
 } // Anonymous namespace
 
 ServiceClient::ServiceClient()
-    : host_(kDefaultHostname), port_(kDefaultPort) {
-  InitChannelAndStub();
-}
+    : GrpcClient<chirp::ServiceLayer::Stub>(kDefaultHostname, kDefaultPort) {}
 
 ServiceClient::ServiceClient(const std::string &host)
-    : host_(host), port_(kDefaultPort) {
-  InitChannelAndStub();
-}
-
-ServiceClient::ServiceClient(const std::string &host, const std::string &port)
-    : host_(host), port_(port) {
-  InitChannelAndStub();
-}
+    : GrpcClient<chirp::ServiceLayer::Stub>(host.c_str(), kDefaultPort) {}
 
 ServiceClient::ReturnCodes ServiceClient::SendRegisterUserRequest(const std::string &username) {
   grpc::ClientContext context;

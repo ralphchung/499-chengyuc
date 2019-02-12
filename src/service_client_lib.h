@@ -9,12 +9,13 @@
 #include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>
 
+#include "grpc_client_lib.h"
 #include "service.grpc.pb.h"
 
 #include <iostream>
 
 // A client that is used to communicate with the service server
-class ServiceClient {
+class ServiceClient : public GrpcClient<chirp::ServiceLayer::Stub> {
  public:
   enum ReturnCodes : int {
     OK = 0,
@@ -56,10 +57,6 @@ class ServiceClient {
   // Constructor that takes one argument to be the hostname
   // hostname is specified in the argument and port number will be "50002"
   ServiceClient(const std::string &host);
-
-  // Constructor that takes two arguments which are hostname and port number
-  // hostname and port number will be specified in the arguments
-  ServiceClient(const std::string &host, const std::string &port);
 
   // Send a user register request to the server
   // returns OK if this operation succeeds
@@ -103,22 +100,6 @@ class ServiceClient {
   };
 
  private:
-  // server hostname
-  std::string host_;
-  // server port number
-  std::string port_;
-
-  // Two variables from grpc library to set up the connection.
-  std::shared_ptr<grpc::Channel> channel_;
-  std::unique_ptr<chirp::ServiceLayer::Stub> stub_;
-
-  // helper function to initialize the `channel_` and `stub_`
-  inline void InitChannelAndStub() {
-    channel_ = grpc::CreateChannel(host_ + ":" + port_,
-                                   grpc::InsecureChannelCredentials());
-    stub_ = chirp::ServiceLayer::NewStub(channel_);
-  }
-
   // Translate grpc chirp to the chirp we define here
   inline void GrpcChirpToClientChirp(const chirp::Chirp &grpc_chirp, struct Chirp * const client_chirp) {
     if (client_chirp != nullptr) {

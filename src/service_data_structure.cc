@@ -383,13 +383,14 @@ void chirp_connect_backend::ComposeBinaryChirp(const struct ServiceDataStructure
   }
 }
 
-BackendClient backend_client_;
+// Definition
+std::unique_ptr<BackendClient> chirp_connect_backend::backend_client_(new BackendClientStandard());
 
 // Wrapper functions
 // Wrapper function to get `next_chirp_id`
 uint64_t chirp_connect_backend::GetNextChirpId() {
   std::vector<std::string> reply;
-  bool ok = backend_client_.SendGetRequest(std::vector<std::string>({kTypeNextChirpId}), &reply);
+  bool ok = chirp_connect_backend::backend_client_->SendGetRequest(std::vector<std::string>({kTypeNextChirpId}), &reply);
   CHECK(ok) << "Get request should be successful.";
 
   // Get the next chirp id from backend
@@ -402,7 +403,7 @@ uint64_t chirp_connect_backend::GetNextChirpId() {
 
   // update the next chirp id to the backend
   ++ret;
-  ok = backend_client_.SendPutRequest(
+  ok = chirp_connect_backend::backend_client_->SendPutRequest(
       kTypeNextChirpId,
       std::string(reinterpret_cast<const char*>(&ret), sizeof(uint64_t)));
   CHECK(ok) << "Put request should be successful.";
@@ -413,7 +414,7 @@ uint64_t chirp_connect_backend::GetNextChirpId() {
 bool chirp_connect_backend::GetUser(const std::string &username, struct ServiceDataStructure::User * const user) {
   std::string key = kTypeUsernameToUserPrefix + username;
   std::vector<std::string> reply;
-  bool ok = backend_client_.SendGetRequest(std::vector<std::string>(1, key), &reply);
+  bool ok = chirp_connect_backend::backend_client_->SendGetRequest(std::vector<std::string>(1, key), &reply);
   CHECK(ok) << "Get request should be successful.";
   if (!reply[0].empty()) {
     DecomposeBinaryUser(reply[0], user);
@@ -428,14 +429,14 @@ bool chirp_connect_backend::SaveUser(const std::string &username, const struct S
   std::string key = kTypeUsernameToUserPrefix + username;
   std::string value;
   ComposeBinaryUser(username, &value);
-  bool ok = backend_client_.SendPutRequest(key, value);
+  bool ok = chirp_connect_backend::backend_client_->SendPutRequest(key, value);
   return ok;
 }
 
 // Wrapper function to delete a specified user object
 bool chirp_connect_backend::DeleteUser(const std::string &username) {
   std::string key = kTypeUsernameToUserPrefix + username;
-  bool ok = backend_client_.SendDeleteKeyRequest(key);
+  bool ok = chirp_connect_backend::backend_client_->SendDeleteKeyRequest(key);
   return ok;
 }
 
@@ -443,7 +444,7 @@ bool chirp_connect_backend::DeleteUser(const std::string &username) {
 bool chirp_connect_backend::GetUserFollowingList(const std::string &username, UserFollowingList * const following_list) {
   std::string key = kTypeUsernameToFollowingPrefix + username;
   std::vector<std::string> reply;
-  bool ok = backend_client_.SendGetRequest(std::vector<std::string>(1, key), &reply);
+  bool ok = chirp_connect_backend::backend_client_->SendGetRequest(std::vector<std::string>(1, key), &reply);
   CHECK(ok) << "Get request should be successful.";
   if (!reply[0].empty()) {
     DecomposeBinaryUserFollowing(reply[0], following_list);
@@ -458,14 +459,14 @@ bool chirp_connect_backend::SaveUserFollowingList(const std::string &username, c
   std::string key = kTypeUsernameToFollowingPrefix + username;
   std::string value;
   ComposeBinaryUserFollowing(following_list, &value);
-  bool ok = backend_client_.SendPutRequest(key, value);
+  bool ok = chirp_connect_backend::backend_client_->SendPutRequest(key, value);
   return ok;
 }
 
 // Wrapper function to delete the following list of a specified user
 bool chirp_connect_backend::DeleteUserFollowingList(const std::string &username) {
   std::string key = kTypeUsernameToFollowingPrefix + username;
-  bool ok = backend_client_.SendDeleteKeyRequest(key);
+  bool ok = chirp_connect_backend::backend_client_->SendDeleteKeyRequest(key);
   return ok;
 }
 
@@ -473,7 +474,7 @@ bool chirp_connect_backend::DeleteUserFollowingList(const std::string &username)
 bool chirp_connect_backend::GetUserChirpList(const std::string &username, UserChirpList * const chirp_list) {
   std::string key = kTypeUsernameToChirpPrefix + username;
   std::vector<std::string> reply;
-  bool ok = backend_client_.SendGetRequest(std::vector<std::string>(1, key), &reply);
+  bool ok = chirp_connect_backend::backend_client_->SendGetRequest(std::vector<std::string>(1, key), &reply);
   CHECK(ok) << "Get request should be successful.";
   if (!reply[0].empty()) {
     DecomposeBinaryUserChirp(reply[0], chirp_list);
@@ -488,14 +489,14 @@ bool chirp_connect_backend::SaveUserChirpList(const std::string &username, const
   std::string key = kTypeUsernameToChirpPrefix + username;
   std::string value;
   ComposeBinaryUserChirp(chirp_list, &value);
-  bool ok = backend_client_.SendPutRequest(key, value);
+  bool ok = chirp_connect_backend::backend_client_->SendPutRequest(key, value);
   return ok;
 }
 
 // Wrapper function to delete the chirp list of a specified user
 bool chirp_connect_backend::DeleteUserChirpList(const std::string &username) {
   std::string key = kTypeUsernameToChirpPrefix + username;
-  bool ok = backend_client_.SendDeleteKeyRequest(key);
+  bool ok = chirp_connect_backend::backend_client_->SendDeleteKeyRequest(key);
   return ok;
 }
 
@@ -503,7 +504,7 @@ bool chirp_connect_backend::DeleteUserChirpList(const std::string &username) {
 bool chirp_connect_backend::GetChirp(const uint64_t &chirp_id, struct ServiceDataStructure::Chirp * const chirp) {
   std::string key = kTypeChirpidToChirpPrefix + std::string(reinterpret_cast<const char*>(&chirp_id), sizeof(uint64_t));
   std::vector<std::string> reply;
-  bool ok = backend_client_.SendGetRequest(std::vector<std::string>(1, key), &reply);
+  bool ok = chirp_connect_backend::backend_client_->SendGetRequest(std::vector<std::string>(1, key), &reply);
   CHECK(ok) << "Get request should be successful.";
   if (!reply[0].empty()) {
     DecomposeBinaryChirp(reply[0], chirp);
@@ -518,13 +519,13 @@ bool chirp_connect_backend::SaveChirp(const uint64_t &chirp_id, const struct Ser
   std::string key = kTypeChirpidToChirpPrefix + std::string(reinterpret_cast<const char*>(&chirp_id), sizeof(uint64_t));
   std::string value;
   ComposeBinaryChirp(chirp, &value);
-  bool ok = backend_client_.SendPutRequest(key, value);
+  bool ok = chirp_connect_backend::backend_client_->SendPutRequest(key, value);
   return ok;
 }
 
 // Wrapper function to delete a chirp
 bool chirp_connect_backend::DeleteChirp(const uint64_t &chirp_id) {
   std::string key = kTypeChirpidToChirpPrefix + std::string(reinterpret_cast<const char*>(&chirp_id), sizeof(uint64_t));
-  bool ok = backend_client_.SendDeleteKeyRequest(key);
+  bool ok = chirp_connect_backend::backend_client_->SendDeleteKeyRequest(key);
   return ok;
 }

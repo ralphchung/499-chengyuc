@@ -153,6 +153,9 @@ class ServiceDataStructure {
 };
 
 namespace chirp_connect_backend {
+// Declaration for the `BackendClient` object
+extern std::unique_ptr<BackendClient> backend_client_;
+
 // Binary `User` format:
 // 0x0 - sizeof(struct timeval): struct timeval: last_update_chirp_time
 // Remaining:  username
