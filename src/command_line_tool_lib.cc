@@ -11,6 +11,7 @@
 
 #include "service_client_lib.h"
 
+// The definition of the service client
 ServiceClient command_tool::service_client;
 
 std::string command_tool::usage;

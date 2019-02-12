@@ -120,8 +120,7 @@ grpc::Status ServiceImpl::monitor(
   auto user_session = service_data_structure_.UserLogin(request->username());
   if (user_session == nullptr) {
     return grpc::Status(grpc::NOT_FOUND,
-                        "Failed to login.",
-                        "");
+                        "Failed to login.");
   }
 
   // This indicates that the stream is still on

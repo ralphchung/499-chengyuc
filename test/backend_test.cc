@@ -33,19 +33,19 @@ class BackendTest : public ::testing::Test {
   std::vector<std::string> keys_to_be_deleted;
   std::vector<std::string> correct_values_full;
   std::vector<std::string> correct_values_after_delete;
+  BackendDataStructure backend_data_structure;
+  BackendClientStandard client;
 };
 
 // The following test is on the backend data structure
 // to see if the put and get operations work correctly.
 // The whole process should not trigger any error
 TEST_F(BackendTest, DataStructurePutAndGet) {
-  BackendDataStructure backend_data_structure;
-
   // Put
   for(int i = 0; i < kNumOfPairs; ++i) {
     bool ok = backend_data_structure.Put(keys[i], correct_values_full[i]);
     // Put operations should be successful here
-    EXPECT_EQ(ok, true);
+    EXPECT_TRUE(ok);
   }
 
   // Get
@@ -54,7 +54,7 @@ TEST_F(BackendTest, DataStructurePutAndGet) {
 
     bool ok = backend_data_structure.Get(keys[i], &from_data_structure);
     // Get operations should never fail
-    EXPECT_EQ(ok, true);
+    EXPECT_TRUE(ok);
     // Check if the value matches
     EXPECT_EQ(correct_values_full[i], from_data_structure);
   }
@@ -65,13 +65,11 @@ TEST_F(BackendTest, DataStructurePutAndGet) {
 // Then it gets the values from the backend data structure to see if the values match
 // Also, errors should happen when trying to delete the identical keys twice
 TEST_F(BackendTest, DataStructurPutGetAndDelete) {
-  BackendDataStructure backend_data_structure;
-
   // Put
   for(int i = 0; i < kNumOfPairs; ++i) {
     bool ok = backend_data_structure.Put(keys[i], correct_values_full[i]);
     // Put operations should be successful here
-    EXPECT_EQ(ok, true);
+    EXPECT_TRUE(ok);
   }
 
   // Get
@@ -80,7 +78,7 @@ TEST_F(BackendTest, DataStructurPutGetAndDelete) {
 
     bool ok = backend_data_structure.Get(keys[i], &from_data_structure);
     // Get operations should never fail
-    EXPECT_EQ(ok, true);
+    EXPECT_TRUE(ok);
     // Check if the value matches
     EXPECT_EQ(correct_values_full[i], from_data_structure);
   }
@@ -89,12 +87,12 @@ TEST_F(BackendTest, DataStructurPutGetAndDelete) {
   for(const std::string& key : keys_to_be_deleted) {
     bool ok = backend_data_structure.DeleteKey(key);
     // Delete operations should be successful
-    EXPECT_EQ(ok, true);
+    EXPECT_TRUE(ok);
 
     ok = backend_data_structure.DeleteKey(key);
     // Delete operations should fail here
     // because a key cannot be deleted twice
-    EXPECT_EQ(ok, false);
+    EXPECT_FALSE(ok);
   }
 
   // Get again
@@ -105,11 +103,11 @@ TEST_F(BackendTest, DataStructurPutGetAndDelete) {
 
     if (i % 2 == 1) {
       // Get operations fail since the keys have already been deleted
-      EXPECT_EQ(ok, false);
+      EXPECT_FALSE(ok);
     }
     else {
       // Get operation should get the right values
-      EXPECT_EQ(ok, true);
+      EXPECT_TRUE(ok);
       EXPECT_EQ(correct_values_after_delete[i], from_data_structure);
     }
   }
@@ -119,20 +117,18 @@ TEST_F(BackendTest, DataStructurPutGetAndDelete) {
 // The difference is this tests use grpc to communicate with the backend server.
 // Therefore, this test requires the server process to run simultaneously
 TEST_F(BackendTest, ServerPutAndGet) {
-  BackendClient client;
-
   // Put
   for(int i = 0; i < kNumOfPairs; ++i) {
     bool ok = client.SendPutRequest(keys[i], correct_values_full[i]);
     // Put operations should be successful here
-    EXPECT_EQ(ok, true);
+    EXPECT_TRUE(ok);
   }
 
   // Get
   std::vector<std::string> output_values;
   bool ok = client.SendGetRequest(keys, &output_values);
   // Get operations should never fail
-  EXPECT_EQ(ok, true);
+  EXPECT_TRUE(ok);
   EXPECT_EQ(correct_values_full, output_values);
 }
 
@@ -141,20 +137,18 @@ TEST_F(BackendTest, ServerPutAndGet) {
 // Therefore, this test requires the server process to run simultaneously
 
 TEST_F(BackendTest, ServerPutGetAndDelete) {
-  BackendClient client;
-
   // Put
   for(int i = 0; i < kNumOfPairs; ++i) {
     bool ok = client.SendPutRequest(keys[i], correct_values_full[i]);
     // Put operations should be successful here
-    EXPECT_EQ(ok, true);
+    EXPECT_TRUE(ok);
   }
 
   // Get
   std::vector<std::string> output_values;
   bool ok = client.SendGetRequest(keys, &output_values);
   // Get operations should never fail
-  EXPECT_EQ(ok, true);
+  EXPECT_TRUE(ok);
   // Check if the values match
   EXPECT_EQ(correct_values_full, output_values);
 
@@ -162,19 +156,19 @@ TEST_F(BackendTest, ServerPutGetAndDelete) {
   for(const std::string& key : keys_to_be_deleted) {
     bool ok = client.SendDeleteKeyRequest(key);
     // Delete operations should be successful
-    EXPECT_EQ(ok, true);
+    EXPECT_TRUE(ok);
 
     ok = client.SendDeleteKeyRequest(key);
     // Delete operations should fail here
     // because a key cannot be deleted twice
-    EXPECT_EQ(ok, false);
+    EXPECT_FALSE(ok);
   }
 
   // Get again
   output_values.clear();
   ok = client.SendGetRequest(keys, &output_values);
   // Get operations should be successful
-  EXPECT_EQ(ok, true);
+  EXPECT_TRUE(ok);
   // Check if the values match
   EXPECT_EQ(correct_values_after_delete, output_values);
 }

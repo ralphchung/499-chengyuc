@@ -67,9 +67,9 @@ class ServiceClient : public GrpcClient<chirp::ServiceLayer::Stub> {
   // returns OK if this operation succeeds
   // returns other error codes if this operation fails
   ReturnCodes SendChirpRequest(const std::string &username,
-                        const std::string &text,
-                        const uint64_t &parent_id,
-                        struct Chirp * const chirp);
+                               const std::string &text,
+                               const uint64_t &parent_id,
+                               struct Chirp * const chirp);
 
   // Send a follow request to the server
   // returns OK if this operation succeeds

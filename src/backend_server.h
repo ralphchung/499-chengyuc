@@ -22,10 +22,13 @@ class KeyValueStoreImpl final : public chirp::KeyValueStore::Service {
 
   // Accepts put requests
   grpc::Status put(grpc::ServerContext *context, const chirp::PutRequest *request, chirp::PutReply *reply) override;
+
   // Accepts get requests
   grpc::Status get(grpc::ServerContext *context, grpc::ServerReaderWriter<chirp::GetReply, chirp::GetRequest> *stream) override;
+
   // Accepts deletekey requests
   grpc::Status deletekey(grpc::ServerContext *context, const chirp::DeleteRequest *request, chirp::DeleteReply *reply) override;
+
  private:
   BackendDataStructure backend_data_;
 

@@ -2,12 +2,9 @@
 
 BackendDataStructure::BackendDataStructure() : key_value_map_() {}
 
-BackendDataStructure::~BackendDataStructure() {}
-
 bool BackendDataStructure::Put(const std::string &key,
                                const std::string &value) {
   key_value_map_[key] = value;
-
   return true;
 }
 
@@ -19,14 +16,12 @@ bool BackendDataStructure::Get(const std::string &key,
       *output_value = it->second;
     }
     return true;
-  }
-  else {
+  } else {
     return false;
   }
 }
 
 bool BackendDataStructure::DeleteKey(const std::string &key) {
   auto ok = key_value_map_.erase(key);
-
   return ok;
 }

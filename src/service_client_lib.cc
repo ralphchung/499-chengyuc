@@ -44,7 +44,7 @@ ServiceClient::ReturnCodes ServiceClient::SendChirpRequest(
   request.set_username(username);
   request.set_text(text);
   std::string parent_id_in_bytes(reinterpret_cast<const char*>(&parent_id), sizeof(uint64_t));
-  request.set_parent_id(parent_id_in_bytes);
+  request.set_parent_id(std::move(parent_id_in_bytes));
 
   chirp::ChirpReply reply;
 
@@ -82,7 +82,7 @@ ServiceClient::ReturnCodes ServiceClient::SendReadRequest(
 
   chirp::ReadRequest request;
   std::string chirp_id_in_bytes(reinterpret_cast<const char*>(&chirp_id), sizeof(uint64_t));
-  request.set_chirp_id(chirp_id_in_bytes);
+  request.set_chirp_id(std::move(chirp_id_in_bytes));
 
   chirp::ReadReply reply;
 

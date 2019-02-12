@@ -23,10 +23,9 @@ grpc::Status KeyValueStoreImpl::put(
     const chirp::PutRequest *request,
     chirp::PutReply *reply) {
   
-  if (request == nullptr) {
-    return grpc::Status(grpc::INVALID_ARGUMENT,
-                        "`PutRequest` is nullptr.",
-                        "");
+  if (context == nullptr || request == nullptr) {
+    return grpc::Status(grpc::FAILED_PRECONDITION,
+                        "`ServerContext` or `PutRequest` is nullptr.");
   }
 
   // acquire lock
@@ -38,15 +37,19 @@ grpc::Status KeyValueStoreImpl::put(
 
   if (ok) {
     return grpc::Status::OK;
-  }
-  else {
-    return grpc::Status(grpc::UNKNOWN, "Unknown error happened.", "");
+  } else {
+    return grpc::Status(grpc::UNKNOWN, "Unknown error happened.");
   }
 }
 
 grpc::Status KeyValueStoreImpl::get(
     grpc::ServerContext *context,
     grpc::ServerReaderWriter<chirp::GetReply, chirp::GetRequest> *stream) {
+
+  if (context == nullptr || stream == nullptr) {
+    return grpc::Status(grpc::FAILED_PRECONDITION,
+                        "`ServerContext` or `ServerReaderWriter` is nullptr.");
+  }
 
   chirp::GetRequest request;
 
@@ -60,8 +63,7 @@ grpc::Status KeyValueStoreImpl::get(
     bool ok = backend_data_.Get(request.key(), &value);
     if (ok) {
       reply.set_value(value);
-    }
-    else {
+    } else {
       reply.set_value(std::string());
     }
 
@@ -78,10 +80,9 @@ grpc::Status KeyValueStoreImpl::deletekey(
     const chirp::DeleteRequest *request,
     chirp::DeleteReply *reply) {
 
-  if (request == nullptr) {
-    return grpc::Status(grpc::INVALID_ARGUMENT,
-                        "`PutRequest` is nullptr.",
-                        "");
+  if (context == nullptr || request == nullptr) {
+    return grpc::Status(grpc::FAILED_PRECONDITION,
+                        "`ServerContext` or `PutRequest` is nullptr.");
   }
 
   // acquire lock
@@ -93,9 +94,8 @@ grpc::Status KeyValueStoreImpl::deletekey(
 
   if (ok) {
     return grpc::Status::OK;
-  }
-  else {
-    return grpc::Status(grpc::NOT_FOUND, "Unknown error happened.", "");
+  } else {
+    return grpc::Status(grpc::UNKNOWN, "Unknown error happened.", "");
   }
 }
 
