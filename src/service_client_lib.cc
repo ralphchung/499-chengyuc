@@ -126,6 +126,17 @@ ServiceClient::ReturnCodes ServiceClient::SendMonitorRequest(
   return GrpcStatusToReturnCodes(status);
 }
 
+void ServiceClient::GrpcChirpToClientChirp(const chirp::Chirp &grpc_chirp, struct Chirp * const client_chirp) {
+  if (client_chirp != nullptr) {
+    client_chirp->username = grpc_chirp.username();
+    client_chirp->text = grpc_chirp.text();
+    client_chirp->id = *(reinterpret_cast<const uint64_t*>(grpc_chirp.id().c_str()));
+    client_chirp->parent_id = *(reinterpret_cast<const uint64_t*>(grpc_chirp.parent_id().c_str()));
+    client_chirp->timestamp.seconds = grpc_chirp.timestamp().seconds();
+    client_chirp->timestamp.useconds = grpc_chirp.timestamp().useconds();
+  }
+}
+
 ServiceClient::ReturnCodes ServiceClient::GrpcStatusToReturnCodes(const grpc::Status &status) {
   if (status.ok()) {
     return OK;
@@ -152,7 +163,7 @@ ServiceClient::ReturnCodes ServiceClient::GrpcStatusToReturnCodes(const grpc::St
   } else if (status.error_code() == grpc::PERMISSION_DENIED) {
     return PERMISSION_DENIED;
   } else if (status.error_code() == grpc::INTERNAL) {
-    return INTENRAL_BACKEND_ERROR;
+    return INTERNAL_BACKEND_ERROR;
   } else if (status.error_code() == grpc::UNAVAILABLE) {
     return SERVICE_LAYER_UNAVAILABLE;
   } else {

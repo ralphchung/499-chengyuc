@@ -97,7 +97,7 @@ grpc::Status ServiceImpl::read(
   }
 
   // ServiceDataStructure::ReturnCodes
-  auto ret = DFSScanChirps(reply, ChirpIdBytesToUint(request->chirp_id()));
+  auto ret = DfsScanChirps(reply, ChirpIdBytesToUint(request->chirp_id()));
   return ReturnCodesToGrpcStatus(ret);
 }
 
@@ -184,7 +184,7 @@ void ServiceImpl::InternalChirpToGrpcChirp(
   grpc_chirp->set_allocated_timestamp(timestamp);
 }
 
-ServiceDataStructure::ReturnCodes ServiceImpl::DFSScanChirps(chirp::ReadReply * const reply, const uint64_t &chirp_id) {
+ServiceDataStructure::ReturnCodes ServiceImpl::DfsScanChirps(chirp::ReadReply * const reply, const uint64_t &chirp_id) {
   struct ServiceDataStructure::Chirp internal_chirp;
   // ServiceDataStructure::ReturnCodes
   auto ret = service_data_structure_.ReadChirp(chirp_id, &internal_chirp);
@@ -197,7 +197,7 @@ ServiceDataStructure::ReturnCodes ServiceImpl::DFSScanChirps(chirp::ReadReply * 
 
   for(const auto &id : internal_chirp.children_ids) {
     // ServiceDataStructure::ReturnCodes
-    auto ret = DFSScanChirps(reply, id);
+    auto ret = DfsScanChirps(reply, id);
     if (ret != ServiceDataStructure::OK) {
       return ret;
     }
@@ -222,7 +222,7 @@ grpc::Status ServiceImpl::ReturnCodesToGrpcStatus(const ServiceDataStructure::Re
       return grpc::Status(grpc::NOT_FOUND, "reply id");
     case ServiceDataStructure::PERMISSION_DENIED:
       return grpc::Status(grpc::PERMISSION_DENIED, "");
-    case ServiceDataStructure::INTENRAL_BACKEND_ERROR:
+    case ServiceDataStructure::INTERNAL_BACKEND_ERROR:
       return grpc::Status(grpc::INTERNAL, "backend");
     default:
       return grpc::Status(grpc::UNKNOWN, "");

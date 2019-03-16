@@ -27,7 +27,7 @@ class ServiceClient : public GrpcClient<chirp::ServiceLayer::Stub> {
     REPLY_ID_NOT_FOUND,
     PERMISSION_DENIED,
 
-    INTENRAL_BACKEND_ERROR,
+    INTERNAL_BACKEND_ERROR,
     SERVICE_LAYER_UNAVAILABLE,
 
     UNKOWN_ERROR // should always be the last
@@ -42,7 +42,7 @@ class ServiceClient : public GrpcClient<chirp::ServiceLayer::Stub> {
     "Cannot find the specified chirp id.", // CHIRP_ID_NOT_FOUND
     "Cannot find the specified reply id.", // REPLY_ID_NOT_FOUND
     "User does not have the permission to do so.", // PERMISSION_DENIED
-    "Something goes wrong in the backend server.", // INTENRAL_BACKEND_ERROR
+    "Something goes wrong in the backend server.", // INTERNAL_BACKEND_ERROR
     "Unable to communicate with service layer.", // SERVICE_LAYER_UNAVAILABLE
     "Unknown error." // UNKOWN_ERROR
   };
@@ -51,7 +51,7 @@ class ServiceClient : public GrpcClient<chirp::ServiceLayer::Stub> {
   struct Chirp;
 
   // Constructor that doesn't take any argument
-  // hostname will be "locolhost" and port number number will be "50002"
+  // hostname will be "localhost" and port number number will be "50002"
   ServiceClient();
 
   // Constructor that takes one argument to be the hostname
@@ -101,16 +101,7 @@ class ServiceClient : public GrpcClient<chirp::ServiceLayer::Stub> {
 
  private:
   // Translate grpc chirp to the chirp we define here
-  inline void GrpcChirpToClientChirp(const chirp::Chirp &grpc_chirp, struct Chirp * const client_chirp) {
-    if (client_chirp != nullptr) {
-      client_chirp->username = grpc_chirp.username();
-      client_chirp->text = grpc_chirp.text();
-      client_chirp->id = *(reinterpret_cast<const uint64_t*>(grpc_chirp.id().c_str()));
-      client_chirp->parent_id = *(reinterpret_cast<const uint64_t*>(grpc_chirp.parent_id().c_str()));
-      client_chirp->timestamp.seconds = grpc_chirp.timestamp().seconds();
-      client_chirp->timestamp.useconds = grpc_chirp.timestamp().useconds();
-    }
-  }
+  void GrpcChirpToClientChirp(const chirp::Chirp &grpc_chirp, struct Chirp * const client_chirp);
 
   // helper function to translate grpc status to `ReturnCodes`
   ReturnCodes GrpcStatusToReturnCodes(const grpc::Status &status);

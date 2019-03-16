@@ -58,18 +58,18 @@ class ServiceImpl final : public chirp::ServiceLayer::Service {
 
   // This is a helper function that helps traverse all children chirps within a chirp
   // in a DFS manner.
-  ServiceDataStructure::ReturnCodes DFSScanChirps(chirp::ReadReply * const reply, const uint64_t &chirp_id);
+  ServiceDataStructure::ReturnCodes DfsScanChirps(chirp::ReadReply * const reply, const uint64_t &chirp_id);
 
   // This is a helper function that helps translate `ReturnCodes` to `grpc::Status`
   grpc::Status ReturnCodesToGrpcStatus(const ServiceDataStructure::ReturnCodes &ret);
 
   // This is a helper function that takes a series of bytes and translate them into
-  // an unsigned 64-bit interger.
+  // an unsigned 64-bit integer.
   inline uint64_t ChirpIdBytesToUint(const std::string &chirp_id_in_bytes) {
     return *(reinterpret_cast<const uint64_t*>(chirp_id_in_bytes.c_str()));
   }
 
-  // This is a helper function that takes a unsigned 64-bit interger and translate it
+  // This is a helper function that takes a unsigned 64-bit integer and translate it
   // into a series of type.
   inline std::string ChirpIdUintToBytes(const uint64_t &chirp_id_in_uint) {
     return std::string(reinterpret_cast<const char*>(&chirp_id_in_uint), sizeof(uint64_t));
