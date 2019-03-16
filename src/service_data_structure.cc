@@ -26,7 +26,7 @@ ServiceDataStructure::ReturnCodes ServiceDataStructure::UserSession::Follow(cons
     if (chirp_connect_backend::SaveUserFollowingList(user_.username, following_list)) {
       return OK;
     } else {
-      return INTENRAL_BACKEND_ERROR;
+      return INTERNAL_BACKEND_ERROR;
     }
   } else {
     return FOLLOWEE_NOT_FOUND;
@@ -46,7 +46,7 @@ ServiceDataStructure::ReturnCodes ServiceDataStructure::UserSession::Unfollow(co
   if (!erased) {
     return FOLLOWEE_NOT_FOUND;
   } else if (!chirp_connect_backend::SaveUserFollowingList(user_.username, following_list)) {
-    return INTENRAL_BACKEND_ERROR;
+    return INTERNAL_BACKEND_ERROR;
   } else {
     return OK;
   }
@@ -73,20 +73,20 @@ ServiceDataStructure::ReturnCodes ServiceDataStructure::UserSession::PostChirp(
     parent_chirp.children_ids.push_back(chirp.id);
     bool ok = chirp_connect_backend::SaveChirp(parent_chirp.id, parent_chirp);
     if (!ok) {
-      return INTENRAL_BACKEND_ERROR;
+      return INTERNAL_BACKEND_ERROR;
     }
   }
 
   bool ok = chirp_connect_backend::SaveChirp(chirp.id, chirp);
   if (!ok) {
-    return INTENRAL_BACKEND_ERROR;
+    return INTERNAL_BACKEND_ERROR;
   }
 
   // Update the information of this user
   user_.last_update_chirp_time = chirp.time;
   ok = chirp_connect_backend::SaveUser(user_.username, user_);
   if (!ok) {
-    return INTENRAL_BACKEND_ERROR;
+    return INTERNAL_BACKEND_ERROR;
   }
 
   UserChirpList chirp_list;
@@ -95,7 +95,7 @@ ServiceDataStructure::ReturnCodes ServiceDataStructure::UserSession::PostChirp(
   chirp_list.insert(chirp.id);
   ok = chirp_connect_backend::SaveUserChirpList(user_.username, chirp_list);
   if (!ok) {
-    return INTENRAL_BACKEND_ERROR;
+    return INTERNAL_BACKEND_ERROR;
   }
 
   if (chirp_id != nullptr) {
@@ -122,7 +122,7 @@ ServiceDataStructure::ReturnCodes ServiceDataStructure::UserSession::EditChirp(
     return OK;
   }
 
-  // Should not enter this line9
+  // Should not enter this line
   return UNKOWN_ERROR;
 }
 
@@ -146,7 +146,7 @@ ServiceDataStructure::ReturnCodes ServiceDataStructure::UserSession::DeleteChirp
     if (ok) {
       return OK;
     } else {
-      return INTENRAL_BACKEND_ERROR;
+      return INTERNAL_BACKEND_ERROR;
     }
   }
 
@@ -170,6 +170,7 @@ std::set<uint64_t> ServiceDataStructure::UserSession::MonitorFrom(struct timeval
     ok = chirp_connect_backend::GetUser(username, &user);
     CHECK(ok) << "User `" << username << "` should exist.";
 
+    // to check if the `user.last_update_chirp_time` is later or equal to the `from`
     if (timercmp(&(user.last_update_chirp_time), from, >=)) {
       // Do push_backs
       UserChirpList user_chirp_list;
@@ -181,6 +182,8 @@ std::set<uint64_t> ServiceDataStructure::UserSession::MonitorFrom(struct timeval
         ok = chirp_connect_backend::GetChirp(chirp_id, &chirp);
         CHECK(ok) << "The chirp with chirp_id `" << chirp_id << "` should exist.";
 
+        // to check if the `chirp.time` is later or equal to the `from` and
+        // `chirp.time` is earlier than `now`
         if (timercmp(&(chirp.time), from, >=) && timercmp(&(chirp.time), &now, <)) {
           ret.insert(chirp_id);
         }
@@ -211,7 +214,7 @@ ServiceDataStructure::ReturnCodes ServiceDataStructure::UserRegister(const std::
       chirp_connect_backend::DeleteUser(username);
       chirp_connect_backend::DeleteUserChirpList(username);
       chirp_connect_backend::DeleteUserFollowingList(username);
-      return INTENRAL_BACKEND_ERROR;
+      return INTERNAL_BACKEND_ERROR;
     } else {
       return OK;
     }
@@ -238,10 +241,134 @@ ServiceDataStructure::User::User(const std::string &username) : username(usernam
   gettimeofday(&last_update_chirp_time, nullptr);
 }
 
+void ServiceDataStructure::User::ImportBinary(const std::string &input) {
+  this->last_update_chirp_time = *(reinterpret_cast<const struct timeval *>(input.c_str()));
+  this->username = input.substr(sizeof(struct timeval));
+}
+
+const std::string ServiceDataStructure::User::ExportBinary() const {
+  std::string ret;
+  ret.append(reinterpret_cast<const char*>(&(this->last_update_chirp_time)),
+             sizeof(struct timeval));
+  ret.append(this->username);
+
+  return ret;
+}
+
+void ServiceDataStructure::UserFollowingList::ImportBinary(const std::string &input) {
+  const char* it = input.c_str();
+  uint64_t list_len = *(reinterpret_cast<const uint64_t*>(it));
+
+  it += sizeof(uint64_t);
+  for(uint64_t i = 0; i < list_len; ++i) {
+    uint64_t username_length = *(reinterpret_cast<const uint64_t*>(it));
+    it += sizeof(uint64_t);
+    this->insert(input.substr(it - input.c_str(), username_length));
+    it += username_length;
+  }
+}
+
+const std::string ServiceDataStructure::UserFollowingList::ExportBinary() const {
+  std::string ret;
+
+  uint64_t list_len = this->size();
+  ret.append(reinterpret_cast<const char *>(&list_len), sizeof(uint64_t));
+
+  for(const std::string &username : *this) {
+    uint64_t username_length = username.size();
+    ret.append(reinterpret_cast<const char*>(&username_length), sizeof(uint64_t));
+    ret.append(username);
+  }
+
+  return ret;
+}
+
+void ServiceDataStructure::UserChirpList::ImportBinary(const std::string &input) {
+  const char *it = input.c_str();
+  uint64_t list_len = *(reinterpret_cast<const uint64_t*>(it));
+
+  it += sizeof(uint64_t);
+  for(uint64_t i = 0; i < list_len; ++i, it += sizeof(uint64_t)) {
+    this->insert(*(reinterpret_cast<const uint64_t*>(it)));
+  }
+}
+
+const std::string ServiceDataStructure::UserChirpList::ExportBinary() const {
+  std::string ret;
+
+  uint64_t list_length = this->size();
+  ret.append(reinterpret_cast<const char*>(&list_length), sizeof(uint64_t));
+
+  for(const uint64_t &chirp_id : *this) {
+    ret.append(reinterpret_cast<const char*>(&chirp_id), sizeof(uint64_t));
+  }
+
+  return ret;
+}
+
 ServiceDataStructure::Chirp::Chirp(const std::string &user, const uint64_t &parent_id, const std::string &text)
     : user(user), parent_id(parent_id), text(text) {
   id = chirp_connect_backend::GetNextChirpId();
   gettimeofday(&time, nullptr);
+}
+
+void ServiceDataStructure::Chirp::ImportBinary(const std::string &input) {
+  const char *it = input.c_str();
+  // parse the id
+  this->id = *(reinterpret_cast<const uint64_t*>(it));
+  it += sizeof(uint64_t);
+
+  // parse the parent id
+  this->parent_id = *(reinterpret_cast<const uint64_t*>(it));
+  it += sizeof(uint64_t);
+
+  // parse the time
+  this->time = *(reinterpret_cast<const struct timeval*>(it));
+  it += sizeof(struct timeval);
+
+  // parse the username
+  uint64_t username_length = *(reinterpret_cast<const uint64_t*>(it));
+  it += sizeof(uint64_t);
+  this->user = std::string(it, username_length);
+  it += username_length;
+
+  // parse the text
+  uint64_t text_length = *(reinterpret_cast<const uint64_t*>(it));
+  it += sizeof(uint64_t);
+  this->text = std::string(it, text_length);
+  it += text_length;
+
+  // parse the children ids
+  this->children_ids.clear();
+  uint64_t children_id_length = *(reinterpret_cast<const uint64_t*>(it));
+  it += sizeof(uint64_t);
+  for(uint64_t i = 0; i < children_id_length; ++i, it += sizeof(uint64_t)) {
+    this->children_ids.push_back(*(reinterpret_cast<const uint64_t*>(it)));
+  }
+}
+
+const std::string ServiceDataStructure::Chirp::ExportBinary() const {
+  std::string ret;
+
+  ret.append(reinterpret_cast<const char*>(&(this->id)), sizeof(uint64_t));
+  ret.append(reinterpret_cast<const char*>(&(this->parent_id)), sizeof(uint64_t));
+  ret.append(reinterpret_cast<const char*>(&(this->time)), sizeof(struct timeval));
+
+  uint64_t username_length = this->user.size();
+  ret.append(reinterpret_cast<const char*>(&username_length), sizeof(uint64_t));
+  ret.append(this->user);
+
+  uint64_t text_length = this->text.size();
+  ret.append(reinterpret_cast<const char*>(&text_length), sizeof(uint64_t));
+  ret.append(this->text);
+
+  uint64_t children_id_length = this->children_ids.size();
+  ret.append(reinterpret_cast<const char*>(&children_id_length), sizeof(uint64_t));
+  for(const uint64_t &child_id : this->children_ids) {
+    ret.append(reinterpret_cast<const char*>(&child_id), sizeof(uint64_t));
+  }
+
+  return ret;
 }
 
 // Type identifier for serializing data
@@ -250,138 +377,6 @@ const std::string kTypeUsernameToUserPrefix({0, 0, 0, char(2)});
 const std::string kTypeUsernameToFollowingPrefix({0, 0, 0, char(3)});
 const std::string kTypeUsernameToChirpPrefix({0, 0, 0, char(4)});
 const std::string kTypeChirpidToChirpPrefix({0, 0, 0, char(5)});
-
-void chirp_connect_backend::DecomposeBinaryUser(const std::string &input, struct ServiceDataStructure::User * const user) {
-  if (user != nullptr) {
-    user->last_update_chirp_time = *(reinterpret_cast<const struct timeval *>(input.c_str()));
-    user->username = input.substr(sizeof(struct timeval));
-  }
-}
-
-void chirp_connect_backend::ComposeBinaryUser(const struct ServiceDataStructure::User &user, std::string * const output) {
-  if (output != nullptr) {
-    output->clear();
-    output->append(reinterpret_cast<const char*>(&(user.last_update_chirp_time)),
-                   sizeof(struct timeval));
-    output->append(user.username);
-  }
-}
-
-void chirp_connect_backend::DecomposeBinaryUserFollowing(const std::string &input, UserFollowingList * const following_list) {
-  if (following_list != nullptr) {
-    following_list->clear();
-
-    const char* it = input.c_str();
-    uint64_t list_len = *(reinterpret_cast<const uint64_t *>(it));
-
-    it += sizeof(uint64_t);
-    for(uint64_t i = 0; i < list_len; ++i) {
-      uint64_t username_length = *(reinterpret_cast<const uint64_t*>(it));
-      it += sizeof(uint64_t);
-      following_list->insert(input.substr(it - input.c_str(), username_length));
-      it += username_length;
-    }
-  }
-}
-
-void chirp_connect_backend::ComposeBinaryUserFollowing(const UserFollowingList &following_list, std::string * const output) {
-  if (output != nullptr) {
-    output->clear();
-
-    uint64_t list_len = following_list.size();
-    output->append(reinterpret_cast<const char *>(&list_len), sizeof(uint64_t));
-
-    for(const std::string &username : following_list) {
-      uint64_t username_length = username.size();
-      output->append(reinterpret_cast<const char*>(&username_length), sizeof(uint64_t));
-      output->append(username);
-    }
-  }
-}
-
-void chirp_connect_backend::DecomposeBinaryUserChirp(const std::string &input, UserChirpList * const chirp_list) {
-  if (chirp_list != nullptr) {
-    chirp_list->clear();
-
-    const char *it = input.c_str();
-    uint64_t list_len = *(reinterpret_cast<const uint64_t*>(it));
-
-    it += sizeof(uint64_t);
-    for(uint64_t i = 0; i < list_len; ++i, it += sizeof(uint64_t)) {
-      chirp_list->insert(*(reinterpret_cast<const uint64_t*>(it)));
-    }
-  }
-}
-
-void chirp_connect_backend::ComposeBinaryUserChirp(const UserChirpList &chirp_list, std::string * const output) {
-  if (output != nullptr) {
-    output->clear();
-
-    uint64_t list_length = chirp_list.size();
-    output->append(reinterpret_cast<const char*>(&list_length), sizeof(uint64_t));
-
-    for(const uint64_t &chirp_id : chirp_list) {
-      output->append(reinterpret_cast<const char*>(&chirp_id), sizeof(uint64_t));
-    }
-  }
-}
-
-void chirp_connect_backend::DecomposeBinaryChirp(const std::string &input, struct ServiceDataStructure::Chirp * const chirp) {
-  if (chirp != nullptr) {
-    const char *it = input.c_str();
-    chirp->id = *(reinterpret_cast<const uint64_t*>(it));
-    it += sizeof(uint64_t);
-
-    chirp->parent_id = *(reinterpret_cast<const uint64_t*>(it));
-    it += sizeof(uint64_t);
-
-    chirp->time = *(reinterpret_cast<const struct timeval*>(it));
-    it += sizeof(struct timeval);
-
-    uint64_t username_length = *(reinterpret_cast<const uint64_t*>(it));
-    it += sizeof(uint64_t);
-
-    chirp->user = std::string(it, username_length);
-    it += username_length;
-
-    uint64_t text_length = *(reinterpret_cast<const uint64_t*>(it));
-    it += sizeof(uint64_t);
-
-    chirp->text = std::string(it, text_length);
-    it += text_length;
-
-    chirp->children_ids.clear();
-    uint64_t children_id_length = *(reinterpret_cast<const uint64_t*>(it));
-    it += sizeof(uint64_t);
-    for(uint64_t i = 0; i < children_id_length; ++i, it += sizeof(uint64_t)) {
-      chirp->children_ids.push_back(*(reinterpret_cast<const uint64_t*>(it)));
-    }
-  }
-}
-
-void chirp_connect_backend::ComposeBinaryChirp(const struct ServiceDataStructure::Chirp &chirp, std::string * const output) {
-  if (output != nullptr) {
-    output->clear();
-
-    output->append(reinterpret_cast<const char*>(&(chirp.id)), sizeof(uint64_t));
-    output->append(reinterpret_cast<const char*>(&(chirp.parent_id)), sizeof(uint64_t));
-    output->append(reinterpret_cast<const char*>(&(chirp.time)), sizeof(struct timeval));
-
-    uint64_t username_length = chirp.user.size();
-    output->append(reinterpret_cast<const char*>(&username_length), sizeof(uint64_t));
-    output->append(chirp.user);
-
-    uint64_t text_length = chirp.text.size();
-    output->append(reinterpret_cast<const char*>(&text_length), sizeof(uint64_t));
-    output->append(chirp.text);
-
-    uint64_t children_id_length = chirp.children_ids.size();
-    output->append(reinterpret_cast<const char*>(&children_id_length), sizeof(uint64_t));
-    for(const uint64_t &child_id : chirp.children_ids) {
-      output->append(reinterpret_cast<const char*>(&child_id), sizeof(uint64_t));
-    }
-  }
-}
 
 // Definition
 std::unique_ptr<BackendClient> chirp_connect_backend::backend_client_(new BackendClientStandard());
@@ -417,7 +412,9 @@ bool chirp_connect_backend::GetUser(const std::string &username, struct ServiceD
   bool ok = chirp_connect_backend::backend_client_->SendGetRequest(std::vector<std::string>(1, key), &reply);
   CHECK(ok) << "Get request should be successful.";
   if (!reply[0].empty()) {
-    DecomposeBinaryUser(reply[0], user);
+    if (user != nullptr) {
+      user->ImportBinary(reply[0]);
+    }
     return true;
   } else {
     return false;
@@ -427,9 +424,7 @@ bool chirp_connect_backend::GetUser(const std::string &username, struct ServiceD
 // Wrapper function to save a specified user object
 bool chirp_connect_backend::SaveUser(const std::string &username, const struct ServiceDataStructure::User &user) {
   std::string key = kTypeUsernameToUserPrefix + username;
-  std::string value;
-  ComposeBinaryUser(username, &value);
-  bool ok = chirp_connect_backend::backend_client_->SendPutRequest(key, value);
+  bool ok = chirp_connect_backend::backend_client_->SendPutRequest(key, user.ExportBinary());
   return ok;
 }
 
@@ -441,13 +436,17 @@ bool chirp_connect_backend::DeleteUser(const std::string &username) {
 }
 
 // Wrapper function to get the following list of a specified user
-bool chirp_connect_backend::GetUserFollowingList(const std::string &username, UserFollowingList * const following_list) {
+bool chirp_connect_backend::GetUserFollowingList(
+    const std::string &username,
+    ServiceDataStructure::UserFollowingList * const following_list) {
   std::string key = kTypeUsernameToFollowingPrefix + username;
   std::vector<std::string> reply;
   bool ok = chirp_connect_backend::backend_client_->SendGetRequest(std::vector<std::string>(1, key), &reply);
   CHECK(ok) << "Get request should be successful.";
   if (!reply[0].empty()) {
-    DecomposeBinaryUserFollowing(reply[0], following_list);
+    if (following_list != nullptr) {
+      following_list->ImportBinary(reply[0]);
+    }
     return true;
   } else {
     return false;
@@ -455,11 +454,11 @@ bool chirp_connect_backend::GetUserFollowingList(const std::string &username, Us
 }
 
 // Wrapper function to save the following list of a specified user
-bool chirp_connect_backend::SaveUserFollowingList(const std::string &username, const UserFollowingList &following_list) {
+bool chirp_connect_backend::SaveUserFollowingList(
+    const std::string &username,
+    const ServiceDataStructure::UserFollowingList &following_list) {
   std::string key = kTypeUsernameToFollowingPrefix + username;
-  std::string value;
-  ComposeBinaryUserFollowing(following_list, &value);
-  bool ok = chirp_connect_backend::backend_client_->SendPutRequest(key, value);
+  bool ok = chirp_connect_backend::backend_client_->SendPutRequest(key, following_list.ExportBinary());
   return ok;
 }
 
@@ -471,13 +470,17 @@ bool chirp_connect_backend::DeleteUserFollowingList(const std::string &username)
 }
 
 // Wrapper function to get the chirp list of a specified user
-bool chirp_connect_backend::GetUserChirpList(const std::string &username, UserChirpList * const chirp_list) {
+bool chirp_connect_backend::GetUserChirpList(
+    const std::string &username,
+    ServiceDataStructure::UserChirpList * const chirp_list) {
   std::string key = kTypeUsernameToChirpPrefix + username;
   std::vector<std::string> reply;
   bool ok = chirp_connect_backend::backend_client_->SendGetRequest(std::vector<std::string>(1, key), &reply);
   CHECK(ok) << "Get request should be successful.";
   if (!reply[0].empty()) {
-    DecomposeBinaryUserChirp(reply[0], chirp_list);
+    if (chirp_list != nullptr) {
+      chirp_list->ImportBinary(reply[0]);
+    }
     return true;
   } else {
     return false;
@@ -485,11 +488,11 @@ bool chirp_connect_backend::GetUserChirpList(const std::string &username, UserCh
 }
 
 // Wrapper function to save the chirp list of a specified user
-bool chirp_connect_backend::SaveUserChirpList(const std::string &username, const UserChirpList &chirp_list) {
+bool chirp_connect_backend::SaveUserChirpList(
+    const std::string &username,
+    const ServiceDataStructure::UserChirpList &chirp_list) {
   std::string key = kTypeUsernameToChirpPrefix + username;
-  std::string value;
-  ComposeBinaryUserChirp(chirp_list, &value);
-  bool ok = chirp_connect_backend::backend_client_->SendPutRequest(key, value);
+  bool ok = chirp_connect_backend::backend_client_->SendPutRequest(key, chirp_list.ExportBinary());
   return ok;
 }
 
@@ -501,13 +504,17 @@ bool chirp_connect_backend::DeleteUserChirpList(const std::string &username) {
 }
 
 // Wrapper function to get a chirp
-bool chirp_connect_backend::GetChirp(const uint64_t &chirp_id, struct ServiceDataStructure::Chirp * const chirp) {
+bool chirp_connect_backend::GetChirp(
+    const uint64_t &chirp_id,
+    struct ServiceDataStructure::Chirp * const chirp) {
   std::string key = kTypeChirpidToChirpPrefix + std::string(reinterpret_cast<const char*>(&chirp_id), sizeof(uint64_t));
   std::vector<std::string> reply;
   bool ok = chirp_connect_backend::backend_client_->SendGetRequest(std::vector<std::string>(1, key), &reply);
   CHECK(ok) << "Get request should be successful.";
   if (!reply[0].empty()) {
-    DecomposeBinaryChirp(reply[0], chirp);
+    if (chirp != nullptr) {
+      chirp->ImportBinary(reply[0]);
+    }
     return true;
   } else {
     return false;
@@ -515,11 +522,11 @@ bool chirp_connect_backend::GetChirp(const uint64_t &chirp_id, struct ServiceDat
 }
 
 // Wrapper function to save a chirp
-bool chirp_connect_backend::SaveChirp(const uint64_t &chirp_id, const struct ServiceDataStructure::Chirp &chirp) {
+bool chirp_connect_backend::SaveChirp(
+    const uint64_t &chirp_id,
+    const struct ServiceDataStructure::Chirp &chirp) {
   std::string key = kTypeChirpidToChirpPrefix + std::string(reinterpret_cast<const char*>(&chirp_id), sizeof(uint64_t));
-  std::string value;
-  ComposeBinaryChirp(chirp, &value);
-  bool ok = chirp_connect_backend::backend_client_->SendPutRequest(key, value);
+  bool ok = chirp_connect_backend::backend_client_->SendPutRequest(key, chirp.ExportBinary());
   return ok;
 }
 
