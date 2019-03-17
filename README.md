@@ -99,6 +99,8 @@ $ make command_line_tool
 $ ./chirp
 ```
 **Unit Test**
+
+Note: This requires a running backend_server and a running service_server
 ```shell
 $ make command_line_tool_test
 $ ./command_line_tool_test

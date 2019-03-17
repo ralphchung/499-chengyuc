@@ -113,10 +113,11 @@ TEST_F(BackendTest, DataStructurPutGetAndDelete) {
   }
 }
 
+// TODO: Since the follwing tests require a running backend server, I made them disabled for now
 // This test is similar to the DataStructurePutAndGet above.
 // The difference is this tests use grpc to communicate with the backend server.
 // Therefore, this test requires the server process to run simultaneously
-TEST_F(BackendTest, ServerPutAndGet) {
+TEST_F(BackendTest, DISABLED_ServerPutAndGet) {
   // Put
   for(int i = 0; i < kNumOfPairs; ++i) {
     bool ok = client.SendPutRequest(keys[i], correct_values_full[i]);
@@ -135,8 +136,7 @@ TEST_F(BackendTest, ServerPutAndGet) {
 // This test is similar to the DataStructurPutGetAndDelete above.
 // The difference is this tests use grpc to communicate with the backend server.
 // Therefore, this test requires the server process to run simultaneously
-
-TEST_F(BackendTest, ServerPutGetAndDelete) {
+TEST_F(BackendTest, DISABLED_ServerPutGetAndDelete) {
   // Put
   for(int i = 0; i < kNumOfPairs; ++i) {
     bool ok = client.SendPutRequest(keys[i], correct_values_full[i]);
