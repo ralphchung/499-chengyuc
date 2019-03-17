@@ -76,6 +76,10 @@ command_line_tool_test: $(TEST_PATH)/command_line_tool_test.cc command_line_tool
 	g++ -std=c++11 -I $(SRC_PATH) -Igtest/include -c -o $(TEST_PATH)/command_line_tool_test.o $(TEST_PATH)/command_line_tool_test.cc
 	g++ $(SRC_PATH)/service.pb.o $(SRC_PATH)/service.grpc.pb.o $(SRC_PATH)/service_client_lib.o $(SRC_PATH)/command_line_tool_lib.o $(TEST_PATH)/command_line_tool_test.o -L/usr/local/lib -Lgtest/lib -lgtest -lpthread `pkg-config --libs protobuf grpc++` -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed -ldl -o command_line_tool_test
 
+all: backend_server service_server command_line_tool
+
+all_test: backend_test service_test command_line_tool_test
+
 clean: remove_compiled_proto remove_object_files
 	rm -f ./backend_*
 	rm -f ./service_*
