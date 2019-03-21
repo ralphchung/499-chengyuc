@@ -23,8 +23,7 @@ class GrpcClient {
     stub_.reset(new GrpcStub(channel_));
   }
 
-  GrpcClient(const char *host, const char *port)
-      : host_(host), port_(port) {
+  GrpcClient(const char *host, const char *port) : host_(host), port_(port) {
     channel_ = grpc::CreateChannel(host_ + ":" + port_,
                                    grpc::InsecureChannelCredentials());
     stub_.reset(new GrpcStub(channel_));

@@ -16,7 +16,10 @@ DEFINE_bool(monitor, false, "");
 int main(int argc, char **argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  command_tool::usage = std::string("Usage: ") + argv[0] + " --register <username> --user <username> --chirp <chirp text> --reply <reply chirp id> --follow <username> --read <chirp id> --monitor\n";
+  command_tool::usage =
+      std::string("Usage: ") + argv[0] +
+      " --register <username> --user <username> --chirp <chirp text> --reply "
+      "<reply chirp id> --follow <username> --read <chirp id> --monitor\n";
 
   // Count the number of operations specifies
   size_t op_cnt = 0;

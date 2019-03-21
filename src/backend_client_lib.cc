@@ -12,9 +12,9 @@
 #include "key_value.grpc.pb.h"
 
 namespace {
-const char* kDefaultHostname = "localhost";
-const char* kDefaultPort = "50000";
-} // Anonymous namespace
+const char *kDefaultHostname = "localhost";
+const char *kDefaultPort = "50000";
+}  // Anonymous namespace
 
 // Start of `BackendClient` definitions
 BackendClient::BackendClient()
@@ -43,11 +43,13 @@ bool BackendClientStandard::SendGetRequest(
     const std::vector<std::string> &keys,
     std::vector<std::string> *reply_values) {
   grpc::ClientContext context;
-  std::shared_ptr<grpc::ClientReaderWriter<chirp::GetRequest, chirp::GetReply>> stream(stub_->get(&context));
+  std::shared_ptr<grpc::ClientReaderWriter<chirp::GetRequest, chirp::GetReply>>
+      stream(stub_->get(&context));
 
-  // this lambda function takes `stream` and `keys` from this `BackendClient::SendGetRequest` scope
-  // and takes them by reference
-  // this thread runner fills in the get requests and writes them to the `stream`
+  // this lambda function takes `stream` and `keys` from this
+  // `BackendClient::SendGetRequest` scope and takes them by reference.
+  // This thread runner fills in the get requests and writes them to the
+  // `stream`.
   std::thread writer([&stream, &keys]() {
     for (const std::string &key : keys) {
       chirp::GetRequest request;

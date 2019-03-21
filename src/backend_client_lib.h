@@ -69,4 +69,4 @@ class BackendClientDebug : public BackendClient {
   std::map<std::string, std::string> key_value_;
 };
 
-#endif // CHIRP_TEST_BACKEND_CLIENT_LIB_H_
+#endif  // CHIRP_TEST_BACKEND_CLIENT_LIB_H_

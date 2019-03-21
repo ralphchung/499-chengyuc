@@ -1,13 +1,13 @@
 #ifndef CHIRP_SRC_SERVICE_DATA_STRUCTURE_H_
 #define CHIRP_SRC_SERVICE_DATA_STRUCTURE_H_
 
+#include <sys/time.h>
 #include <climits>
 #include <cstdint>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
-#include <sys/time.h>
 #include <unordered_map>
 #include <vector>
 
@@ -89,7 +89,7 @@ class ServiceDataStructure {
     // The username of the posting user
     std::string user;
     // The chirp id that this chirp replys to
-    // This field leaves if this chirp replys to no chirp
+    // This field leaves 0 if this chirp replys to no chirp
     uint64_t parent_id;
     // The text of this chirp
     std::string text;
@@ -100,7 +100,8 @@ class ServiceDataStructure {
     std::vector<uint64_t> children_ids;
 
     Chirp() = default;
-    Chirp(const std::string &user, const uint64_t &parent_id, const std::string &text);
+    Chirp(const std::string &user, const uint64_t &parent_id,
+          const std::string &text);
 
     // Binary `chirp` format:
     // 0x0 - 0x7 bytes: uint64_t: chirp id
@@ -136,11 +137,11 @@ class ServiceDataStructure {
 
     // Post a chirp
     // If the `parent_id` is not specified, its default value will be 0.
-    // the newly posted chirp id will be set to `chirp_id` if this operation succeeds
+    // The newly posted chirp id will be set to `chirp_id` if this operation
+    // succeeds.
     // returns OK if this operation succeeds
     // returns other return codes otherwise
-    ReturnCodes PostChirp(const std::string &text,
-                          uint64_t * const chirp_id,
+    ReturnCodes PostChirp(const std::string &text, uint64_t *const chirp_id,
                           const uint64_t &parent_id = 0);
 
     // Edit a chirp
@@ -156,7 +157,7 @@ class ServiceDataStructure {
     // Monitor from a specified time to now
     // returns a set containing chirp ids
     // the `struct timeval` passing in will be changed to the current time
-    std::set<uint64_t> MonitorFrom(struct timeval * const from);
+    std::set<uint64_t> MonitorFrom(struct timeval *const from);
 
     // This returns the username
     inline const std::string &SessionGetUsername() {
@@ -175,7 +176,7 @@ class ServiceDataStructure {
     UserSession(const std::string &username);
 
     // Befriend with `ServiceDataStructure`
-    // so that it can call the constructor
+    // so that it can call its constructor
     friend class ServiceDataStructure;
 
     // The `User` that logs in in this session
@@ -188,14 +189,14 @@ class ServiceDataStructure {
   ReturnCodes UserRegister(const std::string &username);
 
   // User login operation
-  // returns a pointer to a newly created `UserSession`
+  // returns a pointer to the newly created `UserSession`
   // returns nullptr if this operation fails
   std::unique_ptr<UserSession> UserLogin(const std::string &username);
 
   // Chirp read operation
   // returns OK if this operation succeeds
   // returns other return codes otherwise
-  ReturnCodes ReadChirp(const uint64_t &id, struct Chirp * const chirp);
+  ReturnCodes ReadChirp(const uint64_t &id, struct Chirp *const chirp);
 };
 
 namespace chirp_connect_backend {
@@ -206,60 +207,72 @@ extern std::unique_ptr<BackendClient> backend_client_;
 uint64_t GetNextChirpId();
 
 // Wrapper function to get a specified user object
-bool GetUser(const std::string &username, struct ServiceDataStructure::User * const user);
+bool GetUser(const std::string &username,
+             struct ServiceDataStructure::User *const user);
 
 // Wrapper function to save a specified user object
-bool SaveUser(const std::string &username, const struct ServiceDataStructure::User &user);
+bool SaveUser(const std::string &username,
+              const struct ServiceDataStructure::User &user);
 
 // Wrapper function to delete a specified user object
 bool DeleteUser(const std::string &username);
 
 // Wrapper function to get the following list of a specified user
-bool GetUserFollowingList(const std::string &username, ServiceDataStructure::UserFollowingList * const following_list);
+bool GetUserFollowingList(
+    const std::string &username,
+    ServiceDataStructure::UserFollowingList *const following_list);
 
 // Wrapper function to save the following list of a specified user
-bool SaveUserFollowingList(const std::string &username, const ServiceDataStructure::UserFollowingList &following_list);
+bool SaveUserFollowingList(
+    const std::string &username,
+    const ServiceDataStructure::UserFollowingList &following_list);
 
 // Wrapper function to delete the following list of a specified user
 bool DeleteUserFollowingList(const std::string &username);
 
 // Wrapper function to get the chirp list of a specified user
-bool GetUserChirpList(const std::string &username, ServiceDataStructure::UserChirpList * const chirp_list);
+bool GetUserChirpList(const std::string &username,
+                      ServiceDataStructure::UserChirpList *const chirp_list);
 
 // Wrapper function to save the chirp list of a specified user
-bool SaveUserChirpList(const std::string &username, const ServiceDataStructure::UserChirpList &chirp_list);
+bool SaveUserChirpList(const std::string &username,
+                       const ServiceDataStructure::UserChirpList &chirp_list);
 
 // Wrapper function to delete the chirp list of a specified user
 bool DeleteUserChirpList(const std::string &username);
 
 // Wrapper function to get a chirp
-bool GetChirp(const uint64_t &chirp_id, struct ServiceDataStructure::Chirp * const chirp);
+bool GetChirp(const uint64_t &chirp_id,
+              struct ServiceDataStructure::Chirp *const chirp);
 
 // Wrapper function to save a chirp
-bool SaveChirp(const uint64_t &chirp_id, const struct ServiceDataStructure::Chirp &chirp);
+bool SaveChirp(const uint64_t &chirp_id,
+               const struct ServiceDataStructure::Chirp &chirp);
 
 // Wrapper function to delete a chirp
 bool DeleteChirp(const uint64_t &chirp_id);
 } /* namespace chirp_connect_backend */
 
-inline const ServiceDataStructure::UserFollowingList ServiceDataStructure::UserSession::SessionGetUserFollowingList() {
+inline const ServiceDataStructure::UserFollowingList
+ServiceDataStructure::UserSession::SessionGetUserFollowingList() {
   ServiceDataStructure::UserFollowingList ret;
   bool ok = chirp_connect_backend::GetUserFollowingList(user_.username, &ret);
-  CHECK(ok) << "The user following list for user `" << user_.username << "` should exist.";
+  CHECK(ok) << "The user following list for user `" << user_.username
+            << "` should exist.";
   return ret;
 }
 
-inline const ServiceDataStructure::UserChirpList ServiceDataStructure::UserSession::SessionGetUserChirpList() {
+inline const ServiceDataStructure::UserChirpList
+ServiceDataStructure::UserSession::SessionGetUserChirpList() {
   ServiceDataStructure::UserChirpList ret;
   bool ok = chirp_connect_backend::GetUserChirpList(user_.username, &ret);
-  CHECK(ok) << "The user chirp list for user `" << user_.username << "` should exist.";
+  CHECK(ok) << "The user chirp list for user `" << user_.username
+            << "` should exist.";
   return ret;
 }
 
 inline ServiceDataStructure::ReturnCodes ServiceDataStructure::ReadChirp(
-    const uint64_t &id,
-    struct ServiceDataStructure::Chirp * const chirp) {
-
+    const uint64_t &id, struct ServiceDataStructure::Chirp *const chirp) {
   bool ok = chirp_connect_backend::GetChirp(id, chirp);
   if (ok) {
     return ServiceDataStructure::OK;

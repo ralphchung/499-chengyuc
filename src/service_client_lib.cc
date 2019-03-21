@@ -9,9 +9,9 @@
 #include "service.grpc.pb.h"
 
 namespace {
-const char* kDefaultHostname = "localhost";
-const char* kDefaultPort = "50002";
-} // Anonymous namespace
+const char *kDefaultHostname = "localhost";
+const char *kDefaultPort = "50002";
+}  // Anonymous namespace
 
 ServiceClient::ServiceClient()
     : GrpcClient<chirp::ServiceLayer::Stub>(kDefaultHostname, kDefaultPort) {}
@@ -19,7 +19,8 @@ ServiceClient::ServiceClient()
 ServiceClient::ServiceClient(const std::string &host)
     : GrpcClient<chirp::ServiceLayer::Stub>(host.c_str(), kDefaultPort) {}
 
-ServiceClient::ReturnCodes ServiceClient::SendRegisterUserRequest(const std::string &username) {
+ServiceClient::ReturnCodes ServiceClient::SendRegisterUserRequest(
+    const std::string &username) {
   grpc::ClientContext context;
 
   chirp::RegisterRequest request;
@@ -33,17 +34,15 @@ ServiceClient::ReturnCodes ServiceClient::SendRegisterUserRequest(const std::str
 }
 
 ServiceClient::ReturnCodes ServiceClient::SendChirpRequest(
-    const std::string &username,
-    const std::string &text,
-    const uint64_t &parent_id,
-    struct ServiceClient::Chirp * const chirp) {
-
+    const std::string &username, const std::string &text,
+    const uint64_t &parent_id, struct ServiceClient::Chirp *const chirp) {
   grpc::ClientContext context;
 
   chirp::ChirpRequest request;
   request.set_username(username);
   request.set_text(text);
-  std::string parent_id_in_bytes(reinterpret_cast<const char*>(&parent_id), sizeof(uint64_t));
+  std::string parent_id_in_bytes(reinterpret_cast<const char *>(&parent_id),
+                                 sizeof(uint64_t));
   request.set_parent_id(std::move(parent_id_in_bytes));
 
   chirp::ChirpReply reply;
@@ -58,9 +57,7 @@ ServiceClient::ReturnCodes ServiceClient::SendChirpRequest(
 }
 
 ServiceClient::ReturnCodes ServiceClient::SendFollowRequest(
-    const std::string &username,
-    const std::string &to_follow) {
-
+    const std::string &username, const std::string &to_follow) {
   grpc::ClientContext context;
 
   chirp::FollowRequest request;
@@ -76,12 +73,12 @@ ServiceClient::ReturnCodes ServiceClient::SendFollowRequest(
 
 ServiceClient::ReturnCodes ServiceClient::SendReadRequest(
     const uint64_t &chirp_id,
-    std::vector<struct ServiceClient::Chirp> * const chirps) {
-
+    std::vector<struct ServiceClient::Chirp> *const chirps) {
   grpc::ClientContext context;
 
   chirp::ReadRequest request;
-  std::string chirp_id_in_bytes(reinterpret_cast<const char*>(&chirp_id), sizeof(uint64_t));
+  std::string chirp_id_in_bytes(reinterpret_cast<const char *>(&chirp_id),
+                                sizeof(uint64_t));
   request.set_chirp_id(std::move(chirp_id_in_bytes));
 
   chirp::ReadReply reply;
@@ -89,7 +86,7 @@ ServiceClient::ReturnCodes ServiceClient::SendReadRequest(
   grpc::Status status = stub_->read(&context, request, &reply);
 
   if (chirps != nullptr) {
-    for(size_t i = 0; i < reply.chirps_size(); ++i) {
+    for (size_t i = 0; i < reply.chirps_size(); ++i) {
       struct ServiceClient::Chirp chirp;
       GrpcChirpToClientChirp(reply.chirps(i), &chirp);
       chirps->push_back(std::move(chirp));
@@ -101,14 +98,14 @@ ServiceClient::ReturnCodes ServiceClient::SendReadRequest(
 
 ServiceClient::ReturnCodes ServiceClient::SendMonitorRequest(
     const std::string &username,
-    std::vector<ServiceClient::Chirp> * const chirps) {
-
+    std::vector<ServiceClient::Chirp> *const chirps) {
   grpc::ClientContext context;
 
   chirp::MonitorRequest request;
   request.set_username(username);
 
-  std::unique_ptr<grpc::ClientReader<chirp::MonitorReply> > reader(stub_->monitor(&context, request));
+  std::unique_ptr<grpc::ClientReader<chirp::MonitorReply> > reader(
+      stub_->monitor(&context, request));
 
   std::cout << "Ctrl + C to terminate\n";
 
@@ -126,18 +123,22 @@ ServiceClient::ReturnCodes ServiceClient::SendMonitorRequest(
   return GrpcStatusToReturnCodes(status);
 }
 
-void ServiceClient::GrpcChirpToClientChirp(const chirp::Chirp &grpc_chirp, struct Chirp * const client_chirp) {
+void ServiceClient::GrpcChirpToClientChirp(const chirp::Chirp &grpc_chirp,
+                                           struct Chirp *const client_chirp) {
   if (client_chirp != nullptr) {
     client_chirp->username = grpc_chirp.username();
     client_chirp->text = grpc_chirp.text();
-    client_chirp->id = *(reinterpret_cast<const uint64_t*>(grpc_chirp.id().c_str()));
-    client_chirp->parent_id = *(reinterpret_cast<const uint64_t*>(grpc_chirp.parent_id().c_str()));
+    client_chirp->id =
+        *(reinterpret_cast<const uint64_t *>(grpc_chirp.id().c_str()));
+    client_chirp->parent_id =
+        *(reinterpret_cast<const uint64_t *>(grpc_chirp.parent_id().c_str()));
     client_chirp->timestamp.seconds = grpc_chirp.timestamp().seconds();
     client_chirp->timestamp.useconds = grpc_chirp.timestamp().useconds();
   }
 }
 
-ServiceClient::ReturnCodes ServiceClient::GrpcStatusToReturnCodes(const grpc::Status &status) {
+ServiceClient::ReturnCodes ServiceClient::GrpcStatusToReturnCodes(
+    const grpc::Status &status) {
   if (status.ok()) {
     return OK;
   } else if (status.error_code() == grpc::INVALID_ARGUMENT) {

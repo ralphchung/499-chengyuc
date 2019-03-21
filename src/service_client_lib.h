@@ -30,21 +30,21 @@ class ServiceClient : public GrpcClient<chirp::ServiceLayer::Stub> {
     INTERNAL_BACKEND_ERROR,
     SERVICE_LAYER_UNAVAILABLE,
 
-    UNKOWN_ERROR // should always be the last
+    UNKOWN_ERROR  // should always be the last
   };
 
   const char *ErrorMsgs[UNKOWN_ERROR + 1] = {
-    "Success", // OK
-    "Invalid arguments have been passed.", // INVALID_ARGUMENT
-    "Username specified already exists.", // USER_EXISTS
-    "Username specified have not been registered.", // USER_NOT_FOUND
-    "Followee username specified does not exist.", // FOLLOWEE_NOT_FOUND
-    "Cannot find the specified chirp id.", // CHIRP_ID_NOT_FOUND
-    "Cannot find the specified reply id.", // REPLY_ID_NOT_FOUND
-    "User does not have the permission to do so.", // PERMISSION_DENIED
-    "Something goes wrong in the backend server.", // INTERNAL_BACKEND_ERROR
-    "Unable to communicate with service layer.", // SERVICE_LAYER_UNAVAILABLE
-    "Unknown error." // UNKOWN_ERROR
+      "Success",                                       // OK
+      "Invalid arguments have been passed.",           // INVALID_ARGUMENT
+      "Username specified already exists.",            // USER_EXISTS
+      "Username specified have not been registered.",  // USER_NOT_FOUND
+      "Followee username specified does not exist.",   // FOLLOWEE_NOT_FOUND
+      "Cannot find the specified chirp id.",           // CHIRP_ID_NOT_FOUND
+      "Cannot find the specified reply id.",           // REPLY_ID_NOT_FOUND
+      "User does not have the permission to do so.",   // PERMISSION_DENIED
+      "Something goes wrong in the backend server.",   // INTERNAL_BACKEND_ERROR
+      "Unable to communicate with service layer.",  // SERVICE_LAYER_UNAVAILABLE
+      "Unknown error."                              // UNKOWN_ERROR
   };
 
   // forward declaration
@@ -69,22 +69,25 @@ class ServiceClient : public GrpcClient<chirp::ServiceLayer::Stub> {
   ReturnCodes SendChirpRequest(const std::string &username,
                                const std::string &text,
                                const uint64_t &parent_id,
-                               struct Chirp * const chirp);
+                               struct Chirp *const chirp);
 
   // Send a follow request to the server
   // returns OK if this operation succeeds
   // returns other error codes if this operation fails
-  ReturnCodes SendFollowRequest(const std::string &username, const std::string &to_follow);
+  ReturnCodes SendFollowRequest(const std::string &username,
+                                const std::string &to_follow);
 
   // Send a read request to the server
   // returns OK if this operation succeeds
   // returns other error codes if this operation fails
-  ReturnCodes SendReadRequest(const uint64_t &chirp_id, std::vector<struct Chirp> * const chirp);
+  ReturnCodes SendReadRequest(const uint64_t &chirp_id,
+                              std::vector<struct Chirp> *const chirp);
 
   // Send a monitor request to the server
   // returns OK if this operation succeeds
   // returns other error codes if this operation fails
-  ReturnCodes SendMonitorRequest(const std::string &username, std::vector<Chirp> * const chirps);
+  ReturnCodes SendMonitorRequest(const std::string &username,
+                                 std::vector<Chirp> *const chirps);
 
   struct Chirp {
     struct Timestamp {
@@ -101,7 +104,8 @@ class ServiceClient : public GrpcClient<chirp::ServiceLayer::Stub> {
 
  private:
   // Translate grpc chirp to the chirp we define here
-  void GrpcChirpToClientChirp(const chirp::Chirp &grpc_chirp, struct Chirp * const client_chirp);
+  void GrpcChirpToClientChirp(const chirp::Chirp &grpc_chirp,
+                              struct Chirp *const client_chirp);
 
   // helper function to translate grpc status to `ReturnCodes`
   ReturnCodes GrpcStatusToReturnCodes(const grpc::Status &status);

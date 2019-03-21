@@ -1,22 +1,20 @@
 #include "service_server.h"
 
+#include <sys/time.h>
 #include <chrono>
 #include <memory>
-#include <thread>
 #include <set>
 #include <string>
-#include <sys/time.h>
+#include <thread>
 #include <vector>
 
 #include <iostream>
 
 ServiceImpl::ServiceImpl() : service_data_structure_() {}
 
-grpc::Status ServiceImpl::registeruser(
-    grpc::ServerContext *context,
-    const chirp::RegisterRequest *request,
-    chirp::RegisterReply *reply) {
-
+grpc::Status ServiceImpl::registeruser(grpc::ServerContext *context,
+                                       const chirp::RegisterRequest *request,
+                                       chirp::RegisterReply *reply) {
   if (context == nullptr || request == nullptr) {
     return grpc::Status(grpc::FAILED_PRECONDITION,
                         "`ServerContext` or `RegisterRequest` is nullptr.");
@@ -27,11 +25,9 @@ grpc::Status ServiceImpl::registeruser(
   return ReturnCodesToGrpcStatus(ret);
 }
 
-grpc::Status ServiceImpl::chirp(
-    grpc::ServerContext *context,
-    const chirp::ChirpRequest *request,
-    chirp::ChirpReply *reply) {
-
+grpc::Status ServiceImpl::chirp(grpc::ServerContext *context,
+                                const chirp::ChirpRequest *request,
+                                chirp::ChirpReply *reply) {
   if (context == nullptr || request == nullptr || reply == nullptr) {
     return grpc::Status(
         grpc::FAILED_PRECONDITION,
@@ -46,8 +42,7 @@ grpc::Status ServiceImpl::chirp(
 
   uint64_t chirp_id;
   // ServiceDataStructure::ReturnCodes
-  auto ret = user_session->PostChirp(request->text(),
-                                     &chirp_id,
+  auto ret = user_session->PostChirp(request->text(), &chirp_id,
                                      ChirpIdBytesToUint(request->parent_id()));
   if (ret != ServiceDataStructure::OK) {
     return ReturnCodesToGrpcStatus(ret);
@@ -57,7 +52,8 @@ grpc::Status ServiceImpl::chirp(
   chirp::Chirp *grpc_chirp = new chirp::Chirp();
   // ServiceDataStructure::ReturnCodes
   ret = service_data_structure_.ReadChirp(chirp_id, &internal_chirp);
-  CHECK(ret == ServiceDataStructure::OK) << "The newly created chirp should not fail to be read.";
+  CHECK(ret == ServiceDataStructure::OK)
+      << "The newly created chirp should not fail to be read.";
 
   InternalChirpToGrpcChirp(internal_chirp, grpc_chirp);
   reply->set_allocated_chirp(grpc_chirp);
@@ -65,11 +61,9 @@ grpc::Status ServiceImpl::chirp(
   return grpc::Status::OK;
 }
 
-grpc::Status ServiceImpl::follow(
-    grpc::ServerContext *context,
-    const chirp::FollowRequest *request,
-    chirp::FollowReply *reply) {
-
+grpc::Status ServiceImpl::follow(grpc::ServerContext *context,
+                                 const chirp::FollowRequest *request,
+                                 chirp::FollowReply *reply) {
   if (context == nullptr || request == nullptr) {
     return grpc::Status(grpc::FAILED_PRECONDITION,
                         "`ServerContext` or `RegisterRequest` is nullptr.");
@@ -86,14 +80,13 @@ grpc::Status ServiceImpl::follow(
   return ReturnCodesToGrpcStatus(ret);
 }
 
-grpc::Status ServiceImpl::read(
-    grpc::ServerContext *context,
-    const chirp::ReadRequest *request,
-    chirp::ReadReply *reply) {
-
+grpc::Status ServiceImpl::read(grpc::ServerContext *context,
+                               const chirp::ReadRequest *request,
+                               chirp::ReadReply *reply) {
   if (context == nullptr || request == nullptr || reply == nullptr) {
-    return grpc::Status(grpc::FAILED_PRECONDITION,
-                        "`ServerContext`, `RegisterRequest`, or `reply` is nullptr.");
+    return grpc::Status(
+        grpc::FAILED_PRECONDITION,
+        "`ServerContext`, `RegisterRequest`, or `reply` is nullptr.");
   }
 
   // ServiceDataStructure::ReturnCodes
@@ -102,13 +95,12 @@ grpc::Status ServiceImpl::read(
 }
 
 grpc::Status ServiceImpl::monitor(
-    grpc::ServerContext *context,
-    const chirp::MonitorRequest *request,
+    grpc::ServerContext *context, const chirp::MonitorRequest *request,
     grpc::ServerWriter<chirp::MonitorReply> *writer) {
-
   if (context == nullptr || request == nullptr || writer == nullptr) {
-    return grpc::Status(grpc::FAILED_PRECONDITION,
-                        "`ServerContext`, `RegisterRequest`, or `writer` is nullptr.");
+    return grpc::Status(
+        grpc::FAILED_PRECONDITION,
+        "`ServerContext`, `RegisterRequest`, or `writer` is nullptr.");
   }
 
   const int mseconds_per_wait = 50;
@@ -119,24 +111,24 @@ grpc::Status ServiceImpl::monitor(
 
   auto user_session = service_data_structure_.UserLogin(request->username());
   if (user_session == nullptr) {
-    return grpc::Status(grpc::NOT_FOUND,
-                        "Failed to login.");
+    return grpc::Status(grpc::NOT_FOUND, "Failed to login.");
   }
 
   // This indicates that the stream is still on
   int cnt = 0;
   bool flag = true;
 
-  while(flag && cnt < times_count) {
+  while (flag && cnt < times_count) {
     // sleep a while to avoid busy polling
     std::this_thread::sleep_for(std::chrono::milliseconds(mseconds_per_wait));
 
     // `start_time` will be modified to the time backend collects the chirps
-    std::set<uint64_t> chirps_collector = user_session->MonitorFrom(&start_time);
+    std::set<uint64_t> chirps_collector =
+        user_session->MonitorFrom(&start_time);
 
     // May use a thread to do the following things
     if (chirps_collector.size() > 0) {
-      for(const auto &chirp_id : chirps_collector) {
+      for (const auto &chirp_id : chirps_collector) {
         struct ServiceDataStructure::Chirp internal_chirp;
         // ServiceDataStructure::ReturnCodes
         auto ret = service_data_structure_.ReadChirp(chirp_id, &internal_chirp);
@@ -167,8 +159,7 @@ grpc::Status ServiceImpl::monitor(
 
 void ServiceImpl::InternalChirpToGrpcChirp(
     const ServiceDataStructure::Chirp &internal_chirp,
-    chirp::Chirp * const grpc_chirp) {
-
+    chirp::Chirp *const grpc_chirp) {
   if (grpc_chirp == nullptr) {
     return;
   }
@@ -184,7 +175,8 @@ void ServiceImpl::InternalChirpToGrpcChirp(
   grpc_chirp->set_allocated_timestamp(timestamp);
 }
 
-ServiceDataStructure::ReturnCodes ServiceImpl::DfsScanChirps(chirp::ReadReply * const reply, const uint64_t &chirp_id) {
+ServiceDataStructure::ReturnCodes ServiceImpl::DfsScanChirps(
+    chirp::ReadReply *const reply, const uint64_t &chirp_id) {
   struct ServiceDataStructure::Chirp internal_chirp;
   // ServiceDataStructure::ReturnCodes
   auto ret = service_data_structure_.ReadChirp(chirp_id, &internal_chirp);
@@ -195,7 +187,7 @@ ServiceDataStructure::ReturnCodes ServiceImpl::DfsScanChirps(chirp::ReadReply * 
   chirp::Chirp *grpc_chirp = reply->add_chirps();
   InternalChirpToGrpcChirp(internal_chirp, grpc_chirp);
 
-  for(const auto &id : internal_chirp.children_ids) {
+  for (const auto &id : internal_chirp.children_ids) {
     // ServiceDataStructure::ReturnCodes
     auto ret = DfsScanChirps(reply, id);
     if (ret != ServiceDataStructure::OK) {
@@ -206,7 +198,8 @@ ServiceDataStructure::ReturnCodes ServiceImpl::DfsScanChirps(chirp::ReadReply * 
   return ServiceDataStructure::OK;
 }
 
-grpc::Status ServiceImpl::ReturnCodesToGrpcStatus(const ServiceDataStructure::ReturnCodes &ret) {
+grpc::Status ServiceImpl::ReturnCodesToGrpcStatus(
+    const ServiceDataStructure::ReturnCodes &ret) {
   switch (ret) {
     case ServiceDataStructure::OK:
       return grpc::Status::OK;
