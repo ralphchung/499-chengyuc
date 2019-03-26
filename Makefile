@@ -51,19 +51,19 @@ backend_test: $(TEST_PATH)/backend_test.cc key_value.pb.o key_value.grpc.pb.o ba
 	g++ -std=c++11 -I $(SRC_PATH) -Igtest/include  -c -o $(TEST_PATH)/backend_test.o $(TEST_PATH)/backend_test.cc
 	g++ $(SRC_PATH)/key_value.pb.o $(SRC_PATH)/key_value.grpc.pb.o $(SRC_PATH)/backend_client_lib.o $(SRC_PATH)/backend_data_structure.o $(TEST_PATH)/backend_test.o -L/usr/local/lib -Lgtest/lib -lgtest -lpthread `pkg-config --libs protobuf grpc++` -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed -ldl -o backend_test
 
-service_data_structure: $(SRC_PATH)/service_data_structure.cc $(SRC_PATH)/service_data_structure.h backend_client_lib
+service_data_structure: $(SRC_PATH)/service_data_structure.cc $(SRC_PATH)/service_data_structure.h backend_client_lib service_data.pb.o
 	g++ -std=c++11 -c -o $(SRC_PATH)/service_data_structure.o $(SRC_PATH)/service_data_structure.cc
 
 service_client_lib: $(SRC_PATH)/grpc_client_lib.h $(SRC_PATH)/service_client_lib.h $(SRC_PATH)/service_client_lib.cc service.pb.cc service.grpc.pb.cc
 	g++ -std=c++11 -c -o $(SRC_PATH)/service_client_lib.o $(SRC_PATH)/service_client_lib.cc
 
-service_server: $(SRC_PATH)/service_server.h $(SRC_PATH)/service_server.cc service.pb.o service.grpc.pb.o key_value.pb.o key_value.grpc.pb.o service_data_structure
+service_server: $(SRC_PATH)/service_server.h $(SRC_PATH)/service_server.cc service.pb.o service.grpc.pb.o key_value.pb.o key_value.grpc.pb.o service_data_structure service_data.pb.o
 	g++ -std=c++11 -c -o $(SRC_PATH)/service_server.o $(SRC_PATH)/service_server.cc
-	g++ $(SRC_PATH)/service_data_structure.o $(SRC_PATH)/service_server.o $(SRC_PATH)/service.pb.o $(SRC_PATH)/service.grpc.pb.o $(SRC_PATH)/key_value.pb.o $(SRC_PATH)/key_value.grpc.pb.o $(SRC_PATH)/backend_client_lib.o -L/usr/local/lib -lglog `pkg-config --libs protobuf grpc++` -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed -ldl -o service_server
+	g++ $(SRC_PATH)/service_data_structure.o $(SRC_PATH)/service_server.o $(SRC_PATH)/service.pb.o $(SRC_PATH)/service.grpc.pb.o $(SRC_PATH)/key_value.pb.o $(SRC_PATH)/key_value.grpc.pb.o $(SRC_PATH)/backend_client_lib.o $(SRC_PATH)/service_data.pb.o -L/usr/local/lib -lglog `pkg-config --libs protobuf grpc++` -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed -ldl -o service_server
 
-service_test: service_data_structure service_client_lib $(TEST_PATH)/service_test.cc key_value.pb.o key_value.grpc.pb.o service.pb.o service.grpc.pb.o
-	g++ -std=c++11 -I $(SRC_PATH) -Igtest/include  -c -o $(TEST_PATH)/service_test.o $(TEST_PATH)/service_test.cc
-	g++ $(SRC_PATH)/key_value.pb.o $(SRC_PATH)/key_value.grpc.pb.o $(SRC_PATH)/service.pb.o $(SRC_PATH)/service.grpc.pb.o $(SRC_PATH)/backend_client_lib.o $(SRC_PATH)/service_data_structure.o $(SRC_PATH)/service_client_lib.o $(TEST_PATH)/service_test.o -L/usr/local/lib -Lgtest/lib -lgtest -lpthread -lglog `pkg-config --libs protobuf grpc++` -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed -ldl -o service_test
+service_test: service_data_structure service_client_lib $(TEST_PATH)/service_test.cc key_value.pb.o key_value.grpc.pb.o service.pb.o service.grpc.pb.o service_data.pb.o
+	g++ -std=c++11 -I $(SRC_PATH) -Igtest/include -c -o $(TEST_PATH)/service_test.o $(TEST_PATH)/service_test.cc
+	g++ $(SRC_PATH)/key_value.pb.o $(SRC_PATH)/key_value.grpc.pb.o $(SRC_PATH)/service.pb.o $(SRC_PATH)/service.grpc.pb.o $(SRC_PATH)/backend_client_lib.o $(SRC_PATH)/service_data_structure.o $(SRC_PATH)/service_client_lib.o $(SRC_PATH)/service_data.pb.o $(TEST_PATH)/service_test.o -L/usr/local/lib -Lgtest/lib -lgtest -lpthread -lglog `pkg-config --libs protobuf grpc++` -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed -ldl -o service_test
 
 command_line_tool_lib: $(SRC_PATH)/command_line_tool_lib.h $(SRC_PATH)/command_line_tool_lib.cc service.pb.cc service.grpc.pb.cc
 	g++ -std=c++11 -c -o $(SRC_PATH)/command_line_tool_lib.o $(SRC_PATH)/command_line_tool_lib.cc

@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package ServiceData;
+
+// Time as given by Linux gettimeofday().
+message Timestamp {
+  int64 seconds = 1;  // Seconds since beginning of UNIX epoch.
+  int64 useconds = 2;  // Microseconds since beginning of UNIX epoch.
+}
+
+message User {
+  string username = 1;
+  Timestamp last_update = 2;
+}
+
+message UserFollowingList {
+  repeated string username = 1;
+}
+
+message UserChirpList {
+  repeated uint64 chirp_id = 1;
+}
+
+message Chirp {
+  uint64 id = 1;
+  string username = 2;
+  uint64 parent_id = 3;
+  string text = 4;
+  Timestamp time = 5;
+  repeated uint64 children_ids = 6;
+}
+
+message NowChirpId {
+  uint64 now_id = 1;
+}

@@ -165,13 +165,13 @@ void ServiceImpl::InternalChirpToGrpcChirp(
   }
 
   chirp::Timestamp *timestamp = new chirp::Timestamp();
-  timestamp->set_seconds(internal_chirp.time.tv_sec);
-  timestamp->set_useconds(internal_chirp.time.tv_usec);
+  timestamp->set_seconds(internal_chirp.get_time().tv_sec);
+  timestamp->set_useconds(internal_chirp.get_time().tv_usec);
 
-  grpc_chirp->set_username(internal_chirp.user);
-  grpc_chirp->set_text(internal_chirp.text);
-  grpc_chirp->set_id(ChirpIdUintToBytes(internal_chirp.id));
-  grpc_chirp->set_parent_id(ChirpIdUintToBytes(internal_chirp.parent_id));
+  grpc_chirp->set_username(internal_chirp.get_username());
+  grpc_chirp->set_text(internal_chirp.get_text());
+  grpc_chirp->set_id(ChirpIdUintToBytes(internal_chirp.get_id()));
+  grpc_chirp->set_parent_id(ChirpIdUintToBytes(internal_chirp.get_parent_id()));
   grpc_chirp->set_allocated_timestamp(timestamp);
 }
 
@@ -187,7 +187,7 @@ ServiceDataStructure::ReturnCodes ServiceImpl::DfsScanChirps(
   chirp::Chirp *grpc_chirp = reply->add_chirps();
   InternalChirpToGrpcChirp(internal_chirp, grpc_chirp);
 
-  for (const auto &id : internal_chirp.children_ids) {
+  for (const auto &id : internal_chirp.get_children_ids()) {
     // ServiceDataStructure::ReturnCodes
     auto ret = DfsScanChirps(reply, id);
     if (ret != ServiceDataStructure::OK) {

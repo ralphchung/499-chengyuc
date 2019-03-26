@@ -165,11 +165,11 @@ TEST_F(ServiceTestDataStructure, ChirpPost) {
       auto ret = service_data_structure_.ReadChirp(id, &chirp);
       // Reading should be successful
       ASSERT_EQ(ServiceDataStructure::OK, ret);
-      EXPECT_EQ(last_id, chirp.parent_id);
-      last_id = chirp.id;
+      EXPECT_EQ(last_id, chirp.get_parent_id());
+      last_id = chirp.get_id();
 
       // colect the texts posted
-      chirps_content_from_backend.push_back(chirp.text);
+      chirps_content_from_backend.push_back(chirp.get_text());
     }
     // Check if the contents are identical
     EXPECT_EQ(chirps_content, chirps_content_from_backend);
@@ -221,7 +221,7 @@ TEST_F(ServiceTestDataStructure, ChirpEdit) {
       ASSERT_EQ(ServiceDataStructure::OK, ret);
 
       // colect the texts posted
-      chirps_content_from_backend.push_back(chirp.text);
+      chirps_content_from_backend.push_back(chirp.get_text());
     }
     // Check if the contents are identical
     EXPECT_EQ(chirps_content_after_edit, chirps_content_from_backend);
@@ -276,7 +276,7 @@ TEST_F(ServiceTestDataStructure, ChirpDelete) {
       ASSERT_EQ(ServiceDataStructure::OK, ret);
 
       // colect the texts posted
-      chirps_content_from_backend.push_back(chirp.text);
+      chirps_content_from_backend.push_back(chirp.get_text());
     }
     // Check if the contents are identical
     EXPECT_EQ(chirps_content_after_delete, chirps_content_from_backend);

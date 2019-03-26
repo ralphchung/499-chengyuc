@@ -14,6 +14,7 @@
 #include <glog/logging.h>
 
 #include "backend_client_lib.h"
+#include "service_data.pb.h"
 
 // The data structure for the service layer
 // This stores users and chirps data.
@@ -36,88 +37,101 @@ class ServiceDataStructure {
     UNKOWN_ERROR = INT_MAX
   };
 
-  struct User {
-    // The username of this user
-    std::string username;
-    // The last posting time of this user
-    struct timeval last_update_chirp_time;
-
+  class User {
+   public:
     // Constructor that initializes the `username`.
     // Other elements are initialized by their default constructors
     User() = default;
     User(const std::string &username);
 
-    // Binary `User` format:
-    // 0x0 - sizeof(struct timeval): struct timeval: last_update_chirp_time
-    // Remaining:  username
-    //
-    // Translate binary data to fill out this `struct User`
+    // Deserialization
     void ImportBinary(const std::string &input);
-    // Export this structure in binary format
+    // Serialization
     const std::string ExportBinary() const;
+
+    // accessors
+    inline const std::string &get_username() { return user_.username(); }
+    inline void set_username(const std::string &username) {
+      user_.set_username(username);
+    }
+    inline const struct timeval &get_last_update() { return last_update_; }
+    inline void set_last_update(const struct timeval &time) {
+      last_update_ = time;
+      auto from_protobuf = user_.mutable_last_update();
+      from_protobuf->set_seconds(time.tv_sec);
+      from_protobuf->set_useconds(time.tv_usec);
+    }
+    inline void set_last_update(const uint64_t &seconds,
+                                const uint64_t &useconds) {
+      struct timeval time;
+      time.tv_sec = seconds;
+      time.tv_usec = useconds;
+      set_last_update(time);
+    }
+
+   private:
+    // the protobuf object
+    ServiceData::User user_;
+    // last update timestamp
+    // maintaining a `struct timeval` here makes it easier to use some libs
+    struct timeval last_update_;
   };
 
+  // This inherits from set<string>. Use protobuf only on deserialization and
+  // serialization.
   class UserFollowingList : public std::set<std::string> {
    public:
-    // Binary `following list` format:
-    // 0x0 - 0x7 bytes: uint64_t: length of this list
-    // Remaining: array of pairs: (username.size(), username)
-    //
-    // Translate binary data to fill out this `UserFollowingList`
+    // Deserialization
     void ImportBinary(const std::string &input);
-    // Export this structure in binary format
+    // Serialization
     const std::string ExportBinary() const;
   };
 
+  // This inherits from set<uint64_t>. Use protobuf only on deserialization and
+  // serialization.
   class UserChirpList : public std::set<uint64_t> {
    public:
-    // Binary `chirp list` format:
-    // 0x0 - 0x7 bytes: uint64_t: length of this list
-    // Remaining: uint64_t[]: array of chirp ids
-    //
-    // Translate binary data to fill out this `UserChirpList`
+    // Deserialization
     void ImportBinary(const std::string &input);
-    // Export this structure in binary format
+    // Serialization
     const std::string ExportBinary() const;
   };
 
-  // The `struct Chirp` is a public struct in the `ServiceDataStructure`.
-  // Therefore, it should be handled carefully.
-  struct Chirp {
-    // The id of this chirp
-    uint64_t id;
-    // The username of the posting user
-    std::string user;
-    // The chirp id that this chirp replys to
-    // This field leaves 0 if this chirp replys to no chirp
-    uint64_t parent_id;
-    // The text of this chirp
-    std::string text;
-    // The timestamp of this chirp
-    struct timeval time;
-
-    // The ids that reply to this chirp
-    std::vector<uint64_t> children_ids;
-
+  class Chirp {
+   public:
     Chirp() = default;
     Chirp(const std::string &user, const uint64_t &parent_id,
           const std::string &text);
 
-    // Binary `chirp` format:
-    // 0x0 - 0x7 bytes: uint64_t: chirp id
-    // 0x8 - 0xF bytes: uint64_t: parent_id
-    // 0x10 - 0x10 + sizeof(struct timeval) bytes: struct timeval: time
-    //     - +8bytes: uint64_t: length of username
-    //     -        : string: username
-    //     - +8bytes: uint64_t: length of text
-    //     -        : string: text
-    //     - +8bytes: uint64_t: length of vector of children chirp ids
-    // Remaining: uint64_t[]: array of children chirp ids
-    //
-    // Translate binary data to fill out this `struct Chirp`
+    // Deserialization
     void ImportBinary(const std::string &input);
-    // Export this structure in binary format
+    // Serialization
     const std::string ExportBinary() const;
+
+    inline const uint64_t get_id() const { return chirp_.id(); }
+    inline const std::string &get_username() const { return chirp_.username(); }
+    inline void set_username(const std::string &username) {
+      chirp_.set_username(username);
+    }
+    inline const uint64_t get_parent_id() const { return chirp_.parent_id(); }
+    inline const std::string &get_text() const { return chirp_.text(); }
+    inline void set_text(const std::string &text) { chirp_.set_text(text); }
+    inline const struct timeval &get_time() const { return time_; }
+    inline const std::set<uint64_t> &get_children_ids() const {
+      return children_ids_;
+    }
+    inline void insert_children_id(const uint64_t &id) {
+      children_ids_.insert(id);
+    }
+    inline void erase_children_id(const uint64_t &id) {
+      children_ids_.erase(id);
+    }
+
+   private:
+    ServiceData::Chirp chirp_;
+    // The timestamp of this chirp
+    struct timeval time_;
+    std::set<uint64_t> children_ids_;
   };
 
   // This user session is used for a user that has logged in
@@ -161,7 +175,7 @@ class ServiceDataStructure {
 
     // This returns the username
     inline const std::string &SessionGetUsername() {
-      return this->user_.username;
+      return this->user_.get_username();
     }
 
     // This returns the user's following list
@@ -180,7 +194,7 @@ class ServiceDataStructure {
     friend class ServiceDataStructure;
 
     // The `User` that logs in in this session
-    struct User user_;
+    User user_;
   };
 
   // User register operation
@@ -196,7 +210,7 @@ class ServiceDataStructure {
   // Chirp read operation
   // returns OK if this operation succeeds
   // returns other return codes otherwise
-  ReturnCodes ReadChirp(const uint64_t &id, struct Chirp *const chirp);
+  ReturnCodes ReadChirp(const uint64_t &id, Chirp *const chirp);
 };
 
 namespace chirp_connect_backend {
@@ -256,8 +270,9 @@ bool DeleteChirp(const uint64_t &chirp_id);
 inline const ServiceDataStructure::UserFollowingList
 ServiceDataStructure::UserSession::SessionGetUserFollowingList() {
   ServiceDataStructure::UserFollowingList ret;
-  bool ok = chirp_connect_backend::GetUserFollowingList(user_.username, &ret);
-  CHECK(ok) << "The user following list for user `" << user_.username
+  bool ok =
+      chirp_connect_backend::GetUserFollowingList(user_.get_username(), &ret);
+  CHECK(ok) << "The user following list for user `" << user_.get_username()
             << "` should exist.";
   return ret;
 }
@@ -265,8 +280,8 @@ ServiceDataStructure::UserSession::SessionGetUserFollowingList() {
 inline const ServiceDataStructure::UserChirpList
 ServiceDataStructure::UserSession::SessionGetUserChirpList() {
   ServiceDataStructure::UserChirpList ret;
-  bool ok = chirp_connect_backend::GetUserChirpList(user_.username, &ret);
-  CHECK(ok) << "The user chirp list for user `" << user_.username
+  bool ok = chirp_connect_backend::GetUserChirpList(user_.get_username(), &ret);
+  CHECK(ok) << "The user chirp list for user `" << user_.get_username()
             << "` should exist.";
   return ret;
 }
