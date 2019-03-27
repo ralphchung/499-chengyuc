@@ -34,11 +34,11 @@ grpc::Status KeyValueStoreImpl::put(grpc::ServerContext *context,
   // release lock
   lock_.clear(std::memory_order_release);
 
-  if (ok) {
-    return grpc::Status::OK;
-  } else {
+  if (!ok) {
     return grpc::Status(grpc::UNKNOWN, "Unknown error happened.");
   }
+
+  return grpc::Status::OK;
 }
 
 grpc::Status KeyValueStoreImpl::get(
@@ -88,11 +88,11 @@ grpc::Status KeyValueStoreImpl::deletekey(grpc::ServerContext *context,
   // release lock
   lock_.clear(std::memory_order_release);
 
-  if (ok) {
-    return grpc::Status::OK;
-  } else {
+  if (!ok) {
     return grpc::Status(grpc::UNKNOWN, "Unknown error happened.", "");
   }
+
+  return grpc::Status::OK;
 }
 
 void run_server() {

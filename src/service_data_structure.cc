@@ -7,6 +7,7 @@
 #include <glog/logging.h>
 
 #include "backend_client_lib.h"
+#include "utility.h"
 
 ServiceDataStructure::User::User(const std::string &username) {
   user_.set_username(username);
@@ -138,17 +139,16 @@ ServiceDataStructure::ReturnCodes ServiceDataStructure::UserSession::Follow(
   bool user_found = chirp_connect_backend::GetUser(username, nullptr);
 
   // The specifed user is found
-  if (user_found) {
-    following_list.insert(username);
-    if (chirp_connect_backend::SaveUserFollowingList(user_.get_username(),
-                                                     following_list)) {
-      return OK;
-    } else {
-      return INTERNAL_BACKEND_ERROR;
-    }
+  if (!user_found) {
+    return FOLLOWEE_NOT_FOUND;
   }
 
-  return FOLLOWEE_NOT_FOUND;
+  following_list.insert(username);
+  if (!chirp_connect_backend::SaveUserFollowingList(user_.get_username(),
+                                                    following_list)) {
+    return INTERNAL_BACKEND_ERROR;
+  }
+  return OK;
 }
 
 ServiceDataStructure::ReturnCodes ServiceDataStructure::UserSession::Unfollow(
@@ -305,8 +305,7 @@ std::set<uint64_t> ServiceDataStructure::UserSession::MonitorFrom(
 
     // to check if the `user.last_update_` is later or equal to the
     // `from`
-    // TODO: overload operators to the following code more readable
-    if (timercmp(&(user.get_last_update()), from, >=)) {
+    if (user.get_last_update() >= *from) {
       // Do push_backs
       UserChirpList user_chirp_list;
       ok = chirp_connect_backend::GetUserChirpList(user.get_username(),
@@ -322,8 +321,7 @@ std::set<uint64_t> ServiceDataStructure::UserSession::MonitorFrom(
 
         // to check if the `chirp.time` is later or equal to the `from` and
         // `chirp.time` is earlier than `now`
-        if (timercmp(&(chirp.get_time()), from, >=) &&
-            timercmp(&(chirp.get_time()), &now, <)) {
+        if (chirp.get_time() >= *from && chirp.get_time() < now) {
           ret.insert(chirp_id);
         }
       }
@@ -529,9 +527,7 @@ bool chirp_connect_backend::DeleteUserChirpList(const std::string &username) {
 // Wrapper function to get a chirp
 bool chirp_connect_backend::GetChirp(
     const uint64_t &chirp_id, struct ServiceDataStructure::Chirp *const chirp) {
-  std::string key =
-      kTypeChirpidToChirpPrefix +
-      std::string(reinterpret_cast<const char *>(&chirp_id), sizeof(uint64_t));
+  std::string key = kTypeChirpidToChirpPrefix + Uint64ToBinary(chirp_id);
   std::vector<std::string> reply;
   bool ok = chirp_connect_backend::backend_client_->SendGetRequest(
       std::vector<std::string>(1, key), &reply);
@@ -549,9 +545,7 @@ bool chirp_connect_backend::GetChirp(
 // Wrapper function to save a chirp
 bool chirp_connect_backend::SaveChirp(
     const uint64_t &chirp_id, const struct ServiceDataStructure::Chirp &chirp) {
-  std::string key =
-      kTypeChirpidToChirpPrefix +
-      std::string(reinterpret_cast<const char *>(&chirp_id), sizeof(uint64_t));
+  std::string key = kTypeChirpidToChirpPrefix + Uint64ToBinary(chirp_id);
   bool ok = chirp_connect_backend::backend_client_->SendPutRequest(
       key, chirp.ExportBinary());
   return ok;
@@ -559,9 +553,7 @@ bool chirp_connect_backend::SaveChirp(
 
 // Wrapper function to delete a chirp
 bool chirp_connect_backend::DeleteChirp(const uint64_t &chirp_id) {
-  std::string key =
-      kTypeChirpidToChirpPrefix +
-      std::string(reinterpret_cast<const char *>(&chirp_id), sizeof(uint64_t));
+  std::string key = kTypeChirpidToChirpPrefix + Uint64ToBinary(chirp_id);
   bool ok = chirp_connect_backend::backend_client_->SendDeleteKeyRequest(key);
   return ok;
 }

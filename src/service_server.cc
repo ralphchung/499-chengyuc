@@ -2,13 +2,14 @@
 
 #include <sys/time.h>
 #include <chrono>
+#include <iostream>
 #include <memory>
 #include <set>
 #include <string>
 #include <thread>
 #include <vector>
 
-#include <iostream>
+#include "utility.h"
 
 ServiceImpl::ServiceImpl() : service_data_structure_() {}
 
@@ -43,7 +44,7 @@ grpc::Status ServiceImpl::chirp(grpc::ServerContext *context,
   uint64_t chirp_id;
   // ServiceDataStructure::ReturnCodes
   auto ret = user_session->PostChirp(request->text(), &chirp_id,
-                                     ChirpIdBytesToUint(request->parent_id()));
+                                     BinaryToUint64(request->parent_id()));
   if (ret != ServiceDataStructure::OK) {
     return ReturnCodesToGrpcStatus(ret);
   }
@@ -90,7 +91,7 @@ grpc::Status ServiceImpl::read(grpc::ServerContext *context,
   }
 
   // ServiceDataStructure::ReturnCodes
-  auto ret = DfsScanChirps(reply, ChirpIdBytesToUint(request->chirp_id()));
+  auto ret = DfsScanChirps(reply, BinaryToUint64(request->chirp_id()));
   return ReturnCodesToGrpcStatus(ret);
 }
 
@@ -170,8 +171,8 @@ void ServiceImpl::InternalChirpToGrpcChirp(
 
   grpc_chirp->set_username(internal_chirp.get_username());
   grpc_chirp->set_text(internal_chirp.get_text());
-  grpc_chirp->set_id(ChirpIdUintToBytes(internal_chirp.get_id()));
-  grpc_chirp->set_parent_id(ChirpIdUintToBytes(internal_chirp.get_parent_id()));
+  grpc_chirp->set_id(Uint64ToBinary(internal_chirp.get_id()));
+  grpc_chirp->set_parent_id(Uint64ToBinary(internal_chirp.get_parent_id()));
   grpc_chirp->set_allocated_timestamp(timestamp);
 }
 

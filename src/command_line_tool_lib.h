@@ -47,6 +47,10 @@ ServiceClient::ReturnCodes Read(const uint64_t &chirp_id);
 // returns other error codes otherwise
 ServiceClient::ReturnCodes Monitor(const std::string &username);
 
+// This is a helper function that helps print out time diff from the current
+// time to the specified chirp posting time.
+void PrintTimeDiff(const struct ServiceClient::Chirp &chirp);
+
 // This is a helper function that helps print a single chirp
 // used in `Chirp()`, `Read()`, and `PrintChirps()`
 // the `padding` controls the indention of this chirp

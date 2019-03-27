@@ -68,19 +68,6 @@ class ServiceImpl final : public chirp::ServiceLayer::Service {
   // `grpc::Status`
   grpc::Status ReturnCodesToGrpcStatus(
       const ServiceDataStructure::ReturnCodes &ret);
-
-  // This is a helper function that takes a series of bytes and translates them
-  // into an unsigned 64-bit integer.
-  inline uint64_t ChirpIdBytesToUint(const std::string &chirp_id_in_bytes) {
-    return *(reinterpret_cast<const uint64_t *>(chirp_id_in_bytes.c_str()));
-  }
-
-  // This is a helper function that takes a unsigned 64-bit integer and
-  // translates it into a series of bytes.
-  inline std::string ChirpIdUintToBytes(const uint64_t &chirp_id_in_uint) {
-    return std::string(reinterpret_cast<const char *>(&chirp_id_in_uint),
-                       sizeof(uint64_t));
-  }
 };
 
 #endif /* CHIRP_SRC_SERVICE_SERVER_H_ */

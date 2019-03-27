@@ -138,24 +138,14 @@ ServiceClient::ReturnCodes command_tool::Monitor(const std::string &username) {
   return ret;
 }
 
-const char padding_char = '|';
-void command_tool::PrintSingleChirp(const struct ServiceClient::Chirp &chirp,
-                                    unsigned padding) {
-  std::string prefix(padding, padding_char);
-
-  // Display ID
-  std::cout << prefix << "ID: " << chirp.id << '\n';
-
-  // Display username
-  std::cout << prefix << '@' << chirp.username << " \u00B7 ";
-
-  // Display time diff
+void command_tool::PrintTimeDiff(const struct ServiceClient::Chirp &chirp) {
   std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
   std::chrono::system_clock::time_point post_time_tp(
       std::chrono::seconds(chirp.timestamp.seconds));
   auto diff = now - post_time_tp;
+  const int kSecondsPerDay = 86400;
   if (std::chrono::duration_cast<std::chrono::hours>(diff) >
-      std::chrono::seconds(86400)) {
+      std::chrono::seconds(kSecondsPerDay)) {
     std::cout << std::chrono::duration_cast<std::chrono::hours>(diff).count() /
                      24
               << " day(s) ago";
@@ -171,8 +161,25 @@ void command_tool::PrintSingleChirp(const struct ServiceClient::Chirp &chirp,
               << " sec(s) ago";
   }
   std::cout << ' ';
+}
+
+const char padding_char = '|';
+void command_tool::PrintSingleChirp(const struct ServiceClient::Chirp &chirp,
+                                    unsigned padding) {
+  std::string prefix(padding, padding_char);
+
+  // Display ID
+  std::cout << prefix << "ID: " << chirp.id << '\n';
+
+  // Display username
+  std::cout << prefix << '@' << chirp.username << " \u00B7 ";
+
+  // Display time diff
+  PrintTimeDiff(chirp);
 
   // Display formated time
+  std::chrono::system_clock::time_point post_time_tp(
+      std::chrono::seconds(chirp.timestamp.seconds));
   auto post_time_time_t = std::chrono::system_clock::to_time_t(post_time_tp);
   std::cout << '(' << std::put_time(std::localtime(&post_time_time_t), "%F %T")
             << ")\n";

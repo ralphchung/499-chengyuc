@@ -15,6 +15,7 @@
 
 #include "backend_client_lib.h"
 #include "service_data.pb.h"
+#include "utility.h"
 
 // The data structure for the service layer
 // This stores users and chirps data.
@@ -289,11 +290,11 @@ ServiceDataStructure::UserSession::SessionGetUserChirpList() {
 inline ServiceDataStructure::ReturnCodes ServiceDataStructure::ReadChirp(
     const uint64_t &id, struct ServiceDataStructure::Chirp *const chirp) {
   bool ok = chirp_connect_backend::GetChirp(id, chirp);
-  if (ok) {
-    return ServiceDataStructure::OK;
-  } else {
+  if (!ok) {
     return ServiceDataStructure::CHIRP_ID_NOT_FOUND;
   }
+
+  return ServiceDataStructure::OK;
 }
 
 #endif /* CHIRP_SRC_SERVICE_DATA_STRUCTURE_H_ */
