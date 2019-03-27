@@ -7,6 +7,7 @@
 
 #include "grpc_client_lib.h"
 #include "service.grpc.pb.h"
+#include "utility.h"
 
 namespace {
 const char *kDefaultHostname = "localhost";
@@ -41,9 +42,7 @@ ServiceClient::ReturnCodes ServiceClient::SendChirpRequest(
   chirp::ChirpRequest request;
   request.set_username(username);
   request.set_text(text);
-  std::string parent_id_in_bytes(reinterpret_cast<const char *>(&parent_id),
-                                 sizeof(uint64_t));
-  request.set_parent_id(std::move(parent_id_in_bytes));
+  request.set_parent_id(Uint64ToBinary(parent_id));
 
   chirp::ChirpReply reply;
 
@@ -77,9 +76,7 @@ ServiceClient::ReturnCodes ServiceClient::SendReadRequest(
   grpc::ClientContext context;
 
   chirp::ReadRequest request;
-  std::string chirp_id_in_bytes(reinterpret_cast<const char *>(&chirp_id),
-                                sizeof(uint64_t));
-  request.set_chirp_id(std::move(chirp_id_in_bytes));
+  request.set_chirp_id(Uint64ToBinary(chirp_id));
 
   chirp::ReadReply reply;
 
@@ -125,16 +122,16 @@ ServiceClient::ReturnCodes ServiceClient::SendMonitorRequest(
 
 void ServiceClient::GrpcChirpToClientChirp(const chirp::Chirp &grpc_chirp,
                                            struct Chirp *const client_chirp) {
-  if (client_chirp != nullptr) {
-    client_chirp->username = grpc_chirp.username();
-    client_chirp->text = grpc_chirp.text();
-    client_chirp->id =
-        *(reinterpret_cast<const uint64_t *>(grpc_chirp.id().c_str()));
-    client_chirp->parent_id =
-        *(reinterpret_cast<const uint64_t *>(grpc_chirp.parent_id().c_str()));
-    client_chirp->timestamp.seconds = grpc_chirp.timestamp().seconds();
-    client_chirp->timestamp.useconds = grpc_chirp.timestamp().useconds();
+  if (client_chirp == nullptr) {
+    return;
   }
+
+  client_chirp->username = grpc_chirp.username();
+  client_chirp->text = grpc_chirp.text();
+  client_chirp->id = BinaryToUint64(grpc_chirp.id());
+  client_chirp->parent_id = BinaryToUint64(grpc_chirp.parent_id());
+  client_chirp->timestamp.seconds = grpc_chirp.timestamp().seconds();
+  client_chirp->timestamp.useconds = grpc_chirp.timestamp().useconds();
 }
 
 ServiceClient::ReturnCodes ServiceClient::GrpcStatusToReturnCodes(

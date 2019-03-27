@@ -14,10 +14,6 @@
 
 namespace {
 
-uint64_t PrintId(const std::string &id) {
-  return *(reinterpret_cast<const uint64_t *>(id.c_str()));
-}
-
 // Constants
 const size_t kNumOfUsersPreset = 10;
 const size_t kNumOfUsersTotal = 20;

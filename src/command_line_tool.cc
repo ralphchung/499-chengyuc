@@ -43,10 +43,8 @@ int main(int argc, char **argv) {
     return command_tool::Read(FLAGS_read);
   } else if (FLAGS_monitor) {
     return command_tool::Monitor(FLAGS_user);
-  } else {
-    std::cout << command_tool::usage;
-    return ServiceClient::INVALID_ARGUMENT;
   }
 
-  return ServiceClient::OK;
+  std::cout << command_tool::usage;
+  return ServiceClient::INVALID_ARGUMENT;
 }
