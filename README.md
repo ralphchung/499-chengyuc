@@ -98,12 +98,11 @@ $ ./service_test
 $ make command_line_tool
 $ ./chirp
 ```
-**Unit Test**
 
-Note: This requires a running backend_server and a running service_server
-```shell
-$ make command_line_tool_test
-$ ./command_line_tool_test
+# Logging
+This program uses glog to log. All the logging will be stored in the folder ```./log```. If this folder does not exist, give the following command
+```
+$ make check_log_folder
 ```
 
 # Basic example usage
