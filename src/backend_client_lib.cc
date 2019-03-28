@@ -8,54 +8,25 @@
 #include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>
 
+#include "grpc_client_lib.h"
 #include "key_value.grpc.pb.h"
 
-// TODO: remove the `DEBUG` part of this and use the same code path in the implementation
-// do the debug code path in some other places
-#ifdef DEBUG
-#include <map>
-#include <string>
-
-std::map<std::string, std::string> key_value;
-#endif /* DEBUG */
-
 namespace {
-const char* kDefaultHostname = "localhost";
-const char* kDefaultPort = "50000";
-} // Anonymous namespace
+const char *kDefaultHostname = "localhost";
+const char *kDefaultPort = "50000";
+}  // Anonymous namespace
 
+// Start of `BackendClient` definitions
 BackendClient::BackendClient()
-    : host_(kDefaultHostname), port_(kDefaultPort) {
-  channel_ = grpc::CreateChannel(host_ + ":" + port_,
-                                 grpc::InsecureChannelCredentials());
-  stub_ = chirp::KeyValueStore::NewStub(channel_);
-}
+    : GrpcClient<chirp::KeyValueStore::Stub>(kDefaultHostname, kDefaultPort) {}
 
 BackendClient::BackendClient(const std::string &host)
-    : host_(host), port_(kDefaultPort) {
-  channel_ = grpc::CreateChannel(host_ + ":" + port_,
-                                 grpc::InsecureChannelCredentials());
-  stub_ = chirp::KeyValueStore::NewStub(channel_);
-}
+    : GrpcClient<chirp::KeyValueStore::Stub>(host.c_str(), kDefaultPort) {}
+// End of `BackendClient` definitions
 
-BackendClient::BackendClient(const std::string &host, const std::string &port)
-    : host_(host), port_(port) {
-  channel_ = grpc::CreateChannel(host_ + ":" + port_,
-                                 grpc::InsecureChannelCredentials());
-  stub_ = chirp::KeyValueStore::NewStub(channel_);
-}
-
-BackendClient::~BackendClient() {}
-
-bool BackendClient::SendPutRequest(const std::string &key,
-                                   const std::string &value) {
-  // TODO: remove the `DEBUG` part
-  #ifdef DEBUG
-  key_value[key] = value;
-  return true;
-
-  #else
-
+// Start of `BackendClientStandard` definitions
+bool BackendClientStandard::SendPutRequest(const std::string &key,
+                                           const std::string &value) {
   grpc::ClientContext context;
 
   chirp::PutRequest request;
@@ -66,26 +37,19 @@ bool BackendClient::SendPutRequest(const std::string &key,
   grpc::Status status = stub_->put(&context, request, &reply);
 
   return status.ok();
-  #endif /* DEBUG */
 }
 
-bool BackendClient::SendGetRequest(const std::vector<std::string> &keys,
-                                   std::vector<std::string> *reply_values) {
-  // TODO: remove the `DEBUG` part
-  #ifdef DEBUG
-  for (const auto &key : keys) {
-    reply_values->push_back(key_value[key]);
-  }
-  return true;
-
-  #else
-
+bool BackendClientStandard::SendGetRequest(
+    const std::vector<std::string> &keys,
+    std::vector<std::string> *reply_values) {
   grpc::ClientContext context;
-  std::shared_ptr<grpc::ClientReaderWriter<chirp::GetRequest, chirp::GetReply>> stream(stub_->get(&context));
+  std::shared_ptr<grpc::ClientReaderWriter<chirp::GetRequest, chirp::GetReply>>
+      stream(stub_->get(&context));
 
-  // this lambda function takes `stream` and `keys` from this `BackendClient::SendGetRequest` scope
-  // and takes them by reference
-  // this thread runner fills in the get requests and writes them to the `stream`
+  // this lambda function takes `stream` and `keys` from this
+  // `BackendClient::SendGetRequest` scope and takes them by reference.
+  // This thread runner fills in the get requests and writes them to the
+  // `stream`.
   std::thread writer([&stream, &keys]() {
     for (const std::string &key : keys) {
       chirp::GetRequest request;
@@ -105,17 +69,9 @@ bool BackendClient::SendGetRequest(const std::vector<std::string> &keys,
   grpc::Status status = stream->Finish();
 
   return status.ok();
-
-  #endif /* DEBUG */
 }
 
-bool BackendClient::SendDeleteKeyRequest(const std::string &key) {
-  // TODO: remove the `DEBUG` part
-  #ifdef DEBUG
-  return key_value.erase(key);
-
-  #else
-
+bool BackendClientStandard::SendDeleteKeyRequest(const std::string &key) {
   grpc::ClientContext context;
 
   chirp::DeleteRequest request;
@@ -125,6 +81,26 @@ bool BackendClient::SendDeleteKeyRequest(const std::string &key) {
   grpc::Status status = stub_->deletekey(&context, request, &reply);
 
   return status.ok();
-
-  #endif /* DEBUG */
 }
+// End of `BackendClientStandard` definitions
+
+// Start of `BackendClientDebug` definitions
+bool BackendClientDebug::SendPutRequest(const std::string &key,
+                                        const std::string &value) {
+  key_value_[key] = value;
+  return true;
+}
+
+bool BackendClientDebug::SendGetRequest(
+    const std::vector<std::string> &keys,
+    std::vector<std::string> *reply_values) {
+  for (const auto &key : keys) {
+    reply_values->push_back(key_value_[key]);
+  }
+  return true;
+}
+
+bool BackendClientDebug::SendDeleteKeyRequest(const std::string &key) {
+  return key_value_.erase(key);
+}
+// End of `BackendClientDebug` definitions

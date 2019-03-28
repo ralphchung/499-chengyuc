@@ -5,29 +5,23 @@
 #include <thread>
 #include <vector>
 
+#include "grpc_client_lib.h"
 #include "service.grpc.pb.h"
+#include "utility.h"
 
 namespace {
-const char* kDefaultHostname = "localhost";
-const char* kDefaultPort = "50002";
-} // Anonymous namespace
+const char *kDefaultHostname = "localhost";
+const char *kDefaultPort = "50002";
+}  // Anonymous namespace
 
 ServiceClient::ServiceClient()
-    : host_(kDefaultHostname), port_(kDefaultPort) {
-  InitChannelAndStub();
-}
+    : GrpcClient<chirp::ServiceLayer::Stub>(kDefaultHostname, kDefaultPort) {}
 
 ServiceClient::ServiceClient(const std::string &host)
-    : host_(host), port_(kDefaultPort) {
-  InitChannelAndStub();
-}
+    : GrpcClient<chirp::ServiceLayer::Stub>(host.c_str(), kDefaultPort) {}
 
-ServiceClient::ServiceClient(const std::string &host, const std::string &port)
-    : host_(host), port_(port) {
-  InitChannelAndStub();
-}
-
-ServiceClient::ReturnCodes ServiceClient::SendRegisterUserRequest(const std::string &username) {
+ServiceClient::ReturnCodes ServiceClient::SendRegisterUserRequest(
+    const std::string &username) {
   grpc::ClientContext context;
 
   chirp::RegisterRequest request;
@@ -41,18 +35,14 @@ ServiceClient::ReturnCodes ServiceClient::SendRegisterUserRequest(const std::str
 }
 
 ServiceClient::ReturnCodes ServiceClient::SendChirpRequest(
-    const std::string &username,
-    const std::string &text,
-    const uint64_t &parent_id,
-    struct ServiceClient::Chirp * const chirp) {
-
+    const std::string &username, const std::string &text,
+    const uint64_t &parent_id, struct ServiceClient::Chirp *const chirp) {
   grpc::ClientContext context;
 
   chirp::ChirpRequest request;
   request.set_username(username);
   request.set_text(text);
-  std::string parent_id_in_bytes(reinterpret_cast<const char*>(&parent_id), sizeof(uint64_t));
-  request.set_parent_id(parent_id_in_bytes);
+  request.set_parent_id(Uint64ToBinary(parent_id));
 
   chirp::ChirpReply reply;
 
@@ -66,9 +56,7 @@ ServiceClient::ReturnCodes ServiceClient::SendChirpRequest(
 }
 
 ServiceClient::ReturnCodes ServiceClient::SendFollowRequest(
-    const std::string &username,
-    const std::string &to_follow) {
-
+    const std::string &username, const std::string &to_follow) {
   grpc::ClientContext context;
 
   chirp::FollowRequest request;
@@ -84,20 +72,18 @@ ServiceClient::ReturnCodes ServiceClient::SendFollowRequest(
 
 ServiceClient::ReturnCodes ServiceClient::SendReadRequest(
     const uint64_t &chirp_id,
-    std::vector<struct ServiceClient::Chirp> * const chirps) {
-
+    std::vector<struct ServiceClient::Chirp> *const chirps) {
   grpc::ClientContext context;
 
   chirp::ReadRequest request;
-  std::string chirp_id_in_bytes(reinterpret_cast<const char*>(&chirp_id), sizeof(uint64_t));
-  request.set_chirp_id(chirp_id_in_bytes);
+  request.set_chirp_id(Uint64ToBinary(chirp_id));
 
   chirp::ReadReply reply;
 
   grpc::Status status = stub_->read(&context, request, &reply);
 
   if (chirps != nullptr) {
-    for(size_t i = 0; i < reply.chirps_size(); ++i) {
+    for (size_t i = 0; i < reply.chirps_size(); ++i) {
       struct ServiceClient::Chirp chirp;
       GrpcChirpToClientChirp(reply.chirps(i), &chirp);
       chirps->push_back(std::move(chirp));
@@ -109,14 +95,14 @@ ServiceClient::ReturnCodes ServiceClient::SendReadRequest(
 
 ServiceClient::ReturnCodes ServiceClient::SendMonitorRequest(
     const std::string &username,
-    std::vector<ServiceClient::Chirp> * const chirps) {
-
+    std::vector<ServiceClient::Chirp> *const chirps) {
   grpc::ClientContext context;
 
   chirp::MonitorRequest request;
   request.set_username(username);
 
-  std::unique_ptr<grpc::ClientReader<chirp::MonitorReply> > reader(stub_->monitor(&context, request));
+  std::unique_ptr<grpc::ClientReader<chirp::MonitorReply> > reader(
+      stub_->monitor(&context, request));
 
   std::cout << "Ctrl + C to terminate\n";
 
@@ -134,7 +120,22 @@ ServiceClient::ReturnCodes ServiceClient::SendMonitorRequest(
   return GrpcStatusToReturnCodes(status);
 }
 
-ServiceClient::ReturnCodes ServiceClient::GrpcStatusToReturnCodes(const grpc::Status &status) {
+void ServiceClient::GrpcChirpToClientChirp(const chirp::Chirp &grpc_chirp,
+                                           struct Chirp *const client_chirp) {
+  if (client_chirp == nullptr) {
+    return;
+  }
+
+  client_chirp->username = grpc_chirp.username();
+  client_chirp->text = grpc_chirp.text();
+  client_chirp->id = BinaryToUint64(grpc_chirp.id());
+  client_chirp->parent_id = BinaryToUint64(grpc_chirp.parent_id());
+  client_chirp->timestamp.seconds = grpc_chirp.timestamp().seconds();
+  client_chirp->timestamp.useconds = grpc_chirp.timestamp().useconds();
+}
+
+ServiceClient::ReturnCodes ServiceClient::GrpcStatusToReturnCodes(
+    const grpc::Status &status) {
   if (status.ok()) {
     return OK;
   } else if (status.error_code() == grpc::INVALID_ARGUMENT) {
@@ -160,7 +161,7 @@ ServiceClient::ReturnCodes ServiceClient::GrpcStatusToReturnCodes(const grpc::St
   } else if (status.error_code() == grpc::PERMISSION_DENIED) {
     return PERMISSION_DENIED;
   } else if (status.error_code() == grpc::INTERNAL) {
-    return INTENRAL_BACKEND_ERROR;
+    return INTERNAL_BACKEND_ERROR;
   } else if (status.error_code() == grpc::UNAVAILABLE) {
     return SERVICE_LAYER_UNAVAILABLE;
   } else {
