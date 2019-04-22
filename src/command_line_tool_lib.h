@@ -47,14 +47,6 @@ ServiceClient::ReturnCodes Read(const uint64_t &chirp_id);
 // returns other error codes otherwise
 ServiceClient::ReturnCodes Monitor(const std::string &username);
 
-// This executes stream operation through grpc using the API in
-// `service_client_lib`.
-// The `tag` cannot be an empty string.
-// This function should never return except users press Ctrl+C in the console.
-// returns OK if succeeds
-// returns other error codes otherwise
-ServiceClient::ReturnCodes Stream(const std::string &tag);
-
 // This is a helper function that helps print out time diff from the current
 // time to the specified chirp posting time.
 void PrintTimeDiff(const struct ServiceClient::Chirp &chirp);

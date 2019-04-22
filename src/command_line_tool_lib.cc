@@ -142,42 +142,6 @@ ServiceClient::ReturnCodes command_tool::Monitor(const std::string &username) {
   return ret;
 }
 
-ServiceClient::ReturnCodes command_tool::Stream(const std::string &tag) {
-  if (tag.empty()) {
-    std::cout << "Cannot stream empty tag.\n";
-    return ServiceClient::INVALID_ARGUMENT;
-  }
-  std::cout << "Streaming #" << tag << std::endl;
-
-  std::vector<struct ServiceClient::Chirp> chirps;
-
-  std::thread print_chirps([&]() {
-    size_t last_size = 0;
-    size_t current_size;
-
-    while (1) {
-      current_size = chirps.size();
-
-      for (size_t i = last_size; i < current_size; ++i) {
-        PrintSingleChirp(chirps[i], 0);
-      }
-
-      last_size = current_size;
-      std::this_thread::sleep_for(std::chrono::milliseconds(kPollingInterval));
-    }
-  });
-
-  // Should never go to this line if everything works perfect
-  // ServiceClient::ReturnCodes
-  auto ret = service_client.SendStreamRequest(tag, &chirps);
-  std::cout << service_client.ErrorMsgs[ret] << "\n";
-
-  print_chirps.join();
-
-  return ret;
-
-}
-
 void command_tool::PrintTimeDiff(const struct ServiceClient::Chirp &chirp) {
   // Get the current time
   std::chrono::system_clock::time_point now = std::chrono::system_clock::now();

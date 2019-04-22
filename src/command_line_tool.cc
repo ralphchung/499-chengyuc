@@ -12,7 +12,6 @@ DEFINE_uint64(reply, 0, "");
 DEFINE_string(follow, "", "");
 DEFINE_uint64(read, 0, "");
 DEFINE_bool(monitor, false, "");
-DEFINE_string(stream, "", "--stream tag to stream chirps with tag");
 
 int main(int argc, char **argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -29,7 +28,6 @@ int main(int argc, char **argv) {
   op_cnt += (!FLAGS_follow.empty());
   op_cnt += (FLAGS_read > 0);
   op_cnt += (FLAGS_monitor);
-  op_cnt += (!FLAGS_stream.empty());
   if (op_cnt > 1) {
     std::cout << command_tool::usage;
     return ServiceClient::INVALID_ARGUMENT;
@@ -45,8 +43,6 @@ int main(int argc, char **argv) {
     return command_tool::Read(FLAGS_read);
   } else if (FLAGS_monitor) {
     return command_tool::Monitor(FLAGS_user);
-  } else if (!FLAGS_stream.empty()) {
-    return command_tool::Stream(FLAGS_stream);
   }
 
   std::cout << command_tool::usage;
