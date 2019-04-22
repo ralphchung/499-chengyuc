@@ -172,6 +172,31 @@ TEST_F(ServiceTestDataStructure, ChirpPost) {
   }
 }
 
+// This test posting chirp with valid and invalid tags
+TEST_F(ServiceTestDataStructure, PostWithTag) {
+  std::string tag_in_chirp = "#tag ";
+  std::string empty_tag = "# ";
+  std::string tag_without_space = "#tag";
+  auto session = service_data_structure_.UserLogin(user_list_[0]);
+  // Login should be successful
+  ASSERT_NE(nullptr, session);
+
+  // post chirp containing valid tag
+  auto ret = session->PostChirp(kShortText + tag_in_chirp, nullptr);
+  // Posting should be successful
+  EXPECT_EQ(ServiceDataStructure::OK, ret);
+
+  // post chirp with empty tag
+  ret = session->PostChirp(kShortText + empty_tag, nullptr);
+  // Posting should be successful
+  EXPECT_EQ(ServiceDataStructure::OK, ret);
+
+  // post chirp containing tag at end without space
+  ret = session->PostChirp(kShortText + tag_without_space, nullptr);
+  // Posting should be successful
+  EXPECT_EQ(ServiceDataStructure::OK, ret);
+}
+
 // This tests on the `EditChirp()`
 TEST_F(ServiceTestDataStructure, ChirpEdit) {
   // Tests for every user
@@ -350,6 +375,46 @@ TEST_F(ServiceTestDataStructure, Monitor) {
     // Check if the contents are identical
     EXPECT_EQ(chirp_collector, monitor_result);
   }
+}
+
+
+TEST_F(ServiceTestDataStructure, Stream) {
+  std::string tag = "tagtest";
+  std::string tag_in_chirp = "#tagtest";
+  auto session = service_data_structure_.UserLogin(user_list_[0]);
+  // Login should be successful
+  ASSERT_NE(nullptr, session);
+
+  // post chirps containing the tag before streaming
+  // shouldn't be streamed
+  for (size_t j = 0; j < 5; ++j) {
+    auto ret = session->PostChirp(kShortText + tag_in_chirp, nullptr);
+    // Posting should be successful
+    EXPECT_EQ(ServiceDataStructure::OK, ret);
+  }
+
+  // Timestamp the current time and back it up
+  struct timeval now;
+  gettimeofday(&now, nullptr);
+  struct timeval backup_now = now;
+
+  // Collect the chirp ids after the above timestamp
+  std::set<uint64_t> chirp_collector;
+  for (size_t j = 0; j < 5; ++j) {
+    uint64_t chirp_id;
+    auto ret = session->PostChirp(kShortText + tag_in_chirp, &chirp_id);
+    // Posting should be successful
+    ASSERT_EQ(ServiceDataStructure::OK, ret);
+    chirp_collector.insert(chirp_id);
+  }
+
+  // Test Stream from
+  auto stream_result = service_data_structure_.StreamFrom(&now, tag);
+  // `now` should be modified by the `Stream` function
+  // so it should be different from the one I have backed up
+  EXPECT_TRUE(timercmp(&backup_now, &now, !=));
+  // Check if the contents are identical
+  EXPECT_EQ(chirp_collector, stream_result);
 }
 
 // TODO: Not sure whether I should keep the following tests, so make it disabled
