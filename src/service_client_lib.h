@@ -89,6 +89,12 @@ class ServiceClient : public GrpcClient<chirp::ServiceLayer::Stub> {
   ReturnCodes SendMonitorRequest(const std::string &username,
                                  std::vector<Chirp> *const chirps);
 
+  // Send a stream request to the server with the tag `tag`
+  // returns OK if this operation succeeds
+  // returns other error codes if this operation fails
+  ReturnCodes SendStreamRequest(const std::string &tag,
+                                 std::vector<Chirp> *const chirps);
+
   struct Chirp {
     struct Timestamp {
       uint64_t seconds;

@@ -47,6 +47,12 @@ class ServiceImpl final : public chirp::ServiceLayer::Service {
       grpc::ServerContext *context, const chirp::MonitorRequest *request,
       grpc::ServerWriter<chirp::MonitorReply> *writer) override;
 
+  // This accepts stream request
+  // returns grpc::Status::Ok if this operation succeeds
+  grpc::Status stream(
+      grpc::ServerContext *context, const chirp::StreamRequest *request,
+      grpc::ServerWriter<chirp::StreamReply> *writer) override;
+
  private:
   // This instantiates a ServiceDataStructure so that those operations above
   // can leverage this.

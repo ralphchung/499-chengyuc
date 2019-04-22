@@ -212,6 +212,11 @@ class ServiceDataStructure {
   // returns OK if this operation succeeds
   // returns other return codes otherwise
   ReturnCodes ReadChirp(const uint64_t &id, Chirp *const chirp);
+
+  // Stream `tag` from a specified time to now
+  // returns a set containing chirp ids
+  // the `struct timeval` passing in will be changed to the current time
+  std::set<uint64_t> StreamFrom(struct timeval *const from, const std::string& tag);
 };
 
 namespace chirp_connect_backend {
@@ -249,9 +254,17 @@ bool DeleteUserFollowingList(const std::string &username);
 bool GetUserChirpList(const std::string &username,
                       ServiceDataStructure::UserChirpList *const chirp_list);
 
+// Wrapper funtion to get the chirp list with the `tag`
+bool GetChirpTagList(const std::string &tag,
+                      ServiceDataStructure::UserChirpList *const chirp_list);
+
 // Wrapper function to save the chirp list of a specified user
 bool SaveUserChirpList(const std::string &username,
                        const ServiceDataStructure::UserChirpList &chirp_list);
+
+// Wrapper function to save the chirp to a specified tag
+bool SaveChirpTag(const std::string& tag,
+                  const ServiceDataStructure::UserChirpList &chirp_tag_list);
 
 // Wrapper function to delete the chirp list of a specified user
 bool DeleteUserChirpList(const std::string &username);

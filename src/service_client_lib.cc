@@ -120,6 +120,32 @@ ServiceClient::ReturnCodes ServiceClient::SendMonitorRequest(
   return GrpcStatusToReturnCodes(status);
 }
 
+ServiceClient::ReturnCodes ServiceClient::SendStreamRequest(const std::string &tag,
+    std::vector<ServiceClient::Chirp> *const chirps) {
+  grpc::ClientContext context;
+
+  chirp::StreamRequest request;
+  request.set_tag(tag);
+
+  std::unique_ptr<grpc::ClientReader<chirp::StreamReply> > reader(
+      stub_->stream(&context, request));
+
+  std::cout << "Ctrl + C to terminate\n";
+
+  chirp::StreamReply reply;
+  while (reader->Read(&reply)) {
+    struct ServiceClient::Chirp client_chirp;
+    GrpcChirpToClientChirp(reply.chirp(), &client_chirp);
+    if (chirps != nullptr) {
+      chirps->push_back(client_chirp);
+    }
+  }
+
+  grpc::Status status = reader->Finish();
+
+  return GrpcStatusToReturnCodes(status);
+}
+
 void ServiceClient::GrpcChirpToClientChirp(const chirp::Chirp &grpc_chirp,
                                            struct Chirp *const client_chirp) {
   if (client_chirp == nullptr) {

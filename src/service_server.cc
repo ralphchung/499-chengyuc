@@ -157,6 +157,63 @@ grpc::Status ServiceImpl::monitor(
 
   return grpc::Status::OK;
 }
+grpc::Status ServiceImpl::stream(
+    grpc::ServerContext *context, const chirp::StreamRequest *request,
+    grpc::ServerWriter<chirp::StreamReply> *writer) {
+  if (context == nullptr || request == nullptr || writer == nullptr) {
+    return grpc::Status(
+        grpc::FAILED_PRECONDITION,
+        "`ServerContext`, `StreamRequest`, or `writer` is nullptr.");
+  }
+
+  const int mseconds_per_wait = 50;
+  const int times_count = INT_MAX;
+
+  struct timeval start_time;
+  gettimeofday(&start_time, nullptr);
+
+  // This indicates that the stream is still on
+  int cnt = 0;
+  bool flag = true;
+
+  while (flag && cnt < times_count) {
+    // sleep a while to avoid busy polling
+    std::this_thread::sleep_for(std::chrono::milliseconds(mseconds_per_wait));
+
+    // `start_time` will be modified to the time backend collects the chirps
+    std::set<uint64_t> chirps_collector =
+        service_data_structure_.StreamFrom(&start_time, request->tag());
+
+    // May use a thread to do the following things
+    if (chirps_collector.size() > 0) {
+      for (const auto &chirp_id : chirps_collector) {
+        ServiceDataStructure::Chirp internal_chirp;
+        // ServiceDataStructure::ReturnCodes
+        auto ret = service_data_structure_.ReadChirp(chirp_id, &internal_chirp);
+        // ignore errors here
+        if (ret != ServiceDataStructure::OK) {
+          continue;
+        }
+
+        chirp::StreamReply reply;
+        chirp::Chirp *grpc_chirp = new chirp::Chirp();
+        InternalChirpToGrpcChirp(internal_chirp, grpc_chirp);
+        reply.set_allocated_chirp(grpc_chirp);
+
+        if (!writer->Write(reply)) {
+          flag = false;
+          break;
+        }
+      }
+
+      cnt = 0;
+    } else {
+      ++cnt;
+    }
+  }
+
+  return grpc::Status::OK;
+}
 
 void ServiceImpl::InternalChirpToGrpcChirp(
     const ServiceDataStructure::Chirp &internal_chirp,
