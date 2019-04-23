@@ -201,6 +201,28 @@ ServiceDataStructure::ReturnCodes ServiceDataStructure::UserSession::PostChirp(
     return INTERNAL_BACKEND_ERROR;
   }
 
+
+
+  // Parse the chirp text to find any tags
+  std::string::size_type start = text.find('#');
+  while (start != std::string::npos) {
+    start += 1;
+    std::string::size_type end = text.find(' ', start);
+    if ((end != std::string::npos && start < end )
+       || (end == std::string::npos && start != text.size())) {
+      // insert an entry
+      std::string::size_type count = end != std::string::npos ? end - start : text.size() - start;
+      UserChirpList chirp_tag_list;
+      ok = chirp_connect_backend::GetChirpTagList(text.substr(start, count),
+                                                   &chirp_tag_list);
+      chirp_tag_list.insert(chirp.get_id());
+      ok = chirp_connect_backend::SaveChirpTag(text.substr(start, count), chirp_tag_list);
+      start++;
+    }
+    if (end == std::string::npos) break;
+    start = text.find("#", end+1);
+  }
+
   // Update the information of this user
   user_.set_last_update(chirp.get_time());
   ok = chirp_connect_backend::SaveUser(user_.get_username(), user_);
@@ -308,7 +330,6 @@ std::set<uint64_t> ServiceDataStructure::UserSession::MonitorFrom(
   CHECK(ok) << "The user following list for user `" << user_.get_username()
             << "` should exist.";
 
-  // TODO: may open threads to do the following things
   for (const auto &username : user_following_list) {
     User user;
     ok = chirp_connect_backend::GetUser(username, &user);
@@ -339,6 +360,33 @@ std::set<uint64_t> ServiceDataStructure::UserSession::MonitorFrom(
     }
   }
 
+  *from = now;
+  return ret;
+}
+
+std::set<uint64_t> ServiceDataStructure::StreamFrom(
+    struct timeval *const from, const std::string& tag) {
+  struct timeval now;
+  gettimeofday(&now, nullptr);
+
+  std::set<uint64_t> ret;
+
+  // get a list of tagged chirp
+  UserChirpList chirp_tag_list;
+  bool ok = chirp_connect_backend::GetChirpTagList(tag,
+                                               &chirp_tag_list);
+  for (const auto &chirp_id : chirp_tag_list) {
+    Chirp chirp;
+    ok = chirp_connect_backend::GetChirp(chirp_id, &chirp);
+    CHECK(ok) << "The chirp with chirp_id `" << chirp_id
+              << "` should exist.";
+
+    // to check if the `chirp.time` is later or equal to the `from` and
+    // `chirp.time` is earlier than `now`
+    if (chirp.get_time() >= *from && chirp.get_time() < now) {
+      ret.insert(chirp_id);
+    }
+  }
   *from = now;
   return ret;
 }
@@ -392,6 +440,7 @@ const std::string kTypeUsernameToUserPrefix({0, 0, 0, char(2)});
 const std::string kTypeUsernameToFollowingPrefix({0, 0, 0, char(3)});
 const std::string kTypeUsernameToChirpPrefix({0, 0, 0, char(4)});
 const std::string kTypeChirpidToChirpPrefix({0, 0, 0, char(5)});
+const std::string kTypeChirpTagPrefix({0, 0, 0, char(6)});
 
 // Definition of `backend_client`
 // The default version for this will communicate through grpc
@@ -519,6 +568,22 @@ bool chirp_connect_backend::GetUserChirpList(
   return true;
 }
 
+bool chirp_connect_backend::GetChirpTagList(const std::string &tag,
+                      ServiceDataStructure::UserChirpList *const chirp_list) {
+  std::string key = kTypeChirpTagPrefix + tag;
+  std::vector<std::string> reply;
+  bool ok = chirp_connect_backend::backend_client_->SendGetRequest(
+      std::vector<std::string>(1, key), &reply);
+  if (!ok) {
+    return false;
+  }
+
+  if (chirp_list != nullptr) {
+    chirp_list->ImportBinary(reply[0]);
+  }
+  return true;
+}
+
 // Wrapper function to save the chirp list of a specified user
 bool chirp_connect_backend::SaveUserChirpList(
     const std::string &username,
@@ -567,5 +632,13 @@ bool chirp_connect_backend::SaveChirp(
 bool chirp_connect_backend::DeleteChirp(const uint64_t &chirp_id) {
   std::string key = kTypeChirpidToChirpPrefix + Uint64ToBinary(chirp_id);
   bool ok = chirp_connect_backend::backend_client_->SendDeleteKeyRequest(key);
+  return ok;
+}
+
+bool chirp_connect_backend::SaveChirpTag(const std::string& tag,     
+  const ServiceDataStructure::UserChirpList &chirp_tag_list) {
+  std::string key = kTypeChirpTagPrefix + tag;
+  bool ok = chirp_connect_backend::backend_client_->SendPutRequest(
+      key, chirp_tag_list.ExportBinary());
   return ok;
 }
