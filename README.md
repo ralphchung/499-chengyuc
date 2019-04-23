@@ -133,6 +133,10 @@ $ ./chirp --register user
 $ ./chirp --chirp text --user user
 ```
 
+Post chirp with tag(s):   
+Tags start with a "#", don't require space before the "#", must be followed by one or more spaces unless at the end of content.		
+"#tagone#tagtwo" will be recognized as one tag with content "tagone#tagtwo".   
+
 **Read a chirp with id 1**
 ```shell
 $ ./chirp --read 1
@@ -152,3 +156,11 @@ $ ./chirp --follow another_user --user user
 ```shell
 $ ./chirp --monitor --user user
 ```
+
+
+**Stream (don't require login as a registered user)**
+```shell
+$ ./chirp --stream "#tagtext"
+```
+Shouldn't include any space between ""
+
