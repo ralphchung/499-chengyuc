@@ -219,7 +219,9 @@ ServiceDataStructure::ReturnCodes ServiceDataStructure::UserSession::PostChirp(
       ok = chirp_connect_backend::SaveChirpTag(text.substr(start, count), chirp_tag_list);
       start++;
     }
-    if (end == std::string::npos) break;
+    if (end == std::string::npos) {
+      break;
+    }
     start = text.find("#", end+1);
   }
 
